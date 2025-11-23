@@ -1,95 +1,95 @@
-# AlgoTrade India - AI Powered Trading System
+AlgoTrade India: AI-Driven NSE Trading Platform
+AlgoTrade India is a full-stack AI trading system for the Indian stock markets, leveraging Deep Reinforcement Learning to autonomously trade NSE stocks using real-time data and technical analysis.
 
-A full-stack algorithmic trading platform for Indian stock markets using Deep Reinforcement Learning. This system autonomously trades NSE stocks using AI signals combined with real-time market analysis.
+Key Features
+Autonomous AI Trading: Deep Q-Network RL agent learns optimal strategies using market data, 20+ technical indicators (RSI, MACD, Bollinger Bands), and market sentiment.
 
-![Python](https://img.shields.io/badge/Python-3.9-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green)
-![Next.js](https://img.shields.io/badge/Next.js-14-black)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.1-red)
+News & Sentiment Analysis: AI-powered Retrieval-Augmented Generation (RAG) model analyzes financial news for sentiment signals.
 
-## Features
+Risk & Analytics Tools: Portfolio risk controls, dynamic position sizing, stop loss, Sharpe ratio, and drawdown analytics.
 
-### AI-Powered Trading
-- **Deep Reinforcement Learning** (DQN) for autonomous decision making
-- **Real-time Technical Analysis** with 20+ indicators (RSI, MACD, Bollinger Bands, etc.)
-- **RAG System** for market sentiment analysis from financial news
-- **Sector-wise Analysis** with AI confidence scores
+Paper Trading Mode: Simulated trading with a ₹1,000 portfolio to test strategies safely.
 
-### Full-Stack Architecture
-- **Microservices**: Python FastAPI (AI Engine) + Node.js (Backend) + Next.js (Frontend)
-- **Real-time Dashboard** with sector-based stock organization
-- **Professional UI** with interactive charts and hover effects
-- **RESTful API** with comprehensive documentation
+Intuitive Dashboard: Sector-wise stock visualization, live analytics, and interactive charts.
 
-### Professional Trading Features
-- **Paper Trading** with virtual ₹1000 portfolio
-- **Risk Management** with position sizing and stop losses
-- **Performance Analytics** with Sharpe ratio and drawdown analysis
-- **Market Reports** daily/weekly/monthly performance summaries
+RESTful APIs: Well-documented endpoints for market data, trading signals, portfolio actions, and training.
 
-## System Architecture
-Frontend (Next.js) → Backend (Node.js) → AI Engine (Python FastAPI) → Market Data
-(Port 3000) (Port 3001) (Port 8000) (Yahoo Finance)
+Tech Stack
+Layer	Frameworks/Tools
+AI Engine	FastAPI, PyTorch, Gymnasium, TA-Lib, yFinance
+Backend	Node.js (Express.js, Axios, CORS)
+Frontend	Next.js (React 18, TypeScript, TailwindCSS, Framer Motion)
+System Overview
+text
+Frontend (Next.js) ─▶ Backend (Node.js) ─▶ AI Engine (FastAPI, PyTorch) ─▶ Live Market Data (Yahoo Finance)
+Quickstart
+Requirements
+Python 3.9+
 
+Node.js 16+
 
-## Tech Stack
+Git
 
-### AI Engine (Python)
-- **FastAPI** - High-performance API framework
-- **PyTorch** - Deep Learning framework
-- **Gymnasium** - Reinforcement Learning environment
-- **yFinance** - Market data acquisition
-- **TA-Lib** - Technical analysis indicators
+Setup
+Clone Repo
 
-### Backend (Node.js)
-- **Express.js** - Web application framework
-- **Axios** - HTTP client for API communication
-- **CORS** - Cross-origin resource sharing
-
-### Frontend (Next.js)
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Animation library
-
-## Quick Start
-
-### Prerequisites
-- Python 3.9+
-- Node.js 16+
-- Git
-
-### Installation
-
-1. **Clone the repository**
-```bash
+text
 git clone https://github.com/yourusername/algotrade-india.git
 cd algotrade-india
+Python AI Engine
 
-Project Structure
-algotrade-india/
-├── ai-engine/                 # Python FastAPI AI Service
-│   ├── src/
-│   │   ├── main.py           # FastAPI server
-│   │   ├── dqn_model.py      # Deep Q-Network implementation
-│   │   ├── trading_environment.py  # Gymnasium trading environment
-│   │   ├── technical_analyzer.py   # Technical analysis engine
-│   │   ├── rag_system.py     # Retrieval Augmented Generation system
-│   │   └── data_manager.py   # Data acquisition and management
-│   ├── models/               # Trained AI models
-│   ├── historical_data/      # Market data storage
-│   └── requirements.txt
-├── backend/                  # Node.js Express Server
-│   ├── server.js
-│   ├── package.json
-│   └── routes/
-├── frontend/                 # Next.js React Application
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   └── styles/
-│   ├── package.json
-│   └── next.config.js
-├── docs/                     # Documentation
-├── .gitignore
-└── README.md
+text
+python -m venv algotrade-env
+source algotrade-env/bin/activate
+cd ai-engine
+pip install -r requirements.txt
+Backend
+
+text
+cd ../backend
+npm install
+Frontend
+
+text
+cd ../frontend
+npm install
+Run Services
+AI Engine: cd ai-engine && source ../algotrade-env/bin/activate && python main.py
+
+Backend: cd backend && npm run dev
+
+Frontend: cd frontend && npm run dev
+
+App Interface: http://localhost:3000
+
+API Docs: http://localhost:8000/docs
+
+API Highlights
+Signals: GET /ai/signal/{symbol} – AI trading signal
+
+Batch Signals: GET /ai/signals/batch
+
+Market Data: GET /stocks, GET /sectors, GET /stocks/{symbol}
+
+Portfolio & Trades: GET /portfolio, POST /trade
+
+Training: POST /ai/train/{symbol}
+
+Contributing
+Fork the repo & create your feature branch
+
+Commit changes
+
+Push & submit a Pull Request
+
+License
+MIT License
+
+Credits
+Market data from Yahoo Finance
+
+AI & analytics built on PyTorch, FastAPI, Gymnasium
+
+UI with Next.js, React
+
+Special thanks to open-source contributors
