@@ -1,95 +1,113 @@
-AlgoTrade India: AI-Driven NSE Trading Platform
-AlgoTrade India is a full-stack AI trading system for the Indian stock markets, leveraging Deep Reinforcement Learning to autonomously trade NSE stocks using real-time data and technical analysis.
+AlgoTrade India – AI Powered NSE Trading Platform
 
-Key Features
-Autonomous AI Trading: Deep Q-Network RL agent learns optimal strategies using market data, 20+ technical indicators (RSI, MACD, Bollinger Bands), and market sentiment.
+AlgoTrade India is a full-stack algorithmic trading platform for the Indian stock markets. It uses deep reinforcement learning, real-time analytics, and AI-driven decisions for autonomous NSE stock trading.
 
-News & Sentiment Analysis: AI-powered Retrieval-Augmented Generation (RAG) model analyzes financial news for sentiment signals.
+Features:
 
-Risk & Analytics Tools: Portfolio risk controls, dynamic position sizing, stop loss, Sharpe ratio, and drawdown analytics.
+Autonomous AI stock trading with Deep Q-Network learning.
 
-Paper Trading Mode: Simulated trading with a ₹1,000 portfolio to test strategies safely.
+More than 20 technical indicators, including RSI, MACD, and Bollinger Bands.
 
-Intuitive Dashboard: Sector-wise stock visualization, live analytics, and interactive charts.
+Market news sentiment analysis with a RAG system.
 
-RESTful APIs: Well-documented endpoints for market data, trading signals, portfolio actions, and training.
+Sector-wise analysis with AI-based confidence scores.
 
-Tech Stack
-Layer	Frameworks/Tools
-AI Engine	FastAPI, PyTorch, Gymnasium, TA-Lib, yFinance
-Backend	Node.js (Express.js, Axios, CORS)
-Frontend	Next.js (React 18, TypeScript, TailwindCSS, Framer Motion)
-System Overview
-text
-Frontend (Next.js) ─▶ Backend (Node.js) ─▶ AI Engine (FastAPI, PyTorch) ─▶ Live Market Data (Yahoo Finance)
-Quickstart
-Requirements
-Python 3.9+
+Portfolio risk management with dynamic position sizes and stops.
 
-Node.js 16+
+Paper trading mode with a simulated INR 1000 portfolio.
 
-Git
+Sharpe ratio and drawdown analytics.
 
-Setup
-Clone Repo
+Real-time interactive dashboard and detailed market summaries.
 
-text
+Tech Stack:
+
+AI Engine: FastAPI, PyTorch, Gymnasium, TA-Lib, yFinance
+
+Backend: Node.js, Express.js, Axios, CORS
+
+Frontend: Next.js 14, React 18, TypeScript, Tailwind CSS, Framer Motion
+
+Project Structure:
+algotrade-india/
+ai-engine/
+src/
+models/
+historical_data/
+requirements.txt
+backend/
+frontend/
+docs/
+.gitignore
+README.md
+
+Getting Started:
+
+Clone the repository:
 git clone https://github.com/yourusername/algotrade-india.git
 cd algotrade-india
-Python AI Engine
 
-text
+Set up the Python virtual environment:
 python -m venv algotrade-env
 source algotrade-env/bin/activate
+
+Install the AI engine dependencies:
 cd ai-engine
 pip install -r requirements.txt
-Backend
 
-text
+Set up the backend:
 cd ../backend
 npm install
-Frontend
 
-text
+Set up the frontend:
 cd ../frontend
 npm install
-Run Services
-AI Engine: cd ai-engine && source ../algotrade-env/bin/activate && python main.py
 
-Backend: cd backend && npm run dev
+Running the Platform:
+Open three terminals, one for each major component.
 
-Frontend: cd frontend && npm run dev
+AI Engine:
+cd ai-engine
+source ../algotrade-env/bin/activate
+python main.py
 
-App Interface: http://localhost:3000
+Backend:
+cd backend
+npm run dev
 
-API Docs: http://localhost:8000/docs
+Frontend:
+cd frontend
+npm run dev
 
-API Highlights
-Signals: GET /ai/signal/{symbol} – AI trading signal
+Use http://localhost:3000 for the dashboard
+API docs are at http://localhost:8000/docs
 
-Batch Signals: GET /ai/signals/batch
+API Endpoints:
 
-Market Data: GET /stocks, GET /sectors, GET /stocks/{symbol}
+/ai/signal/{symbol} for single AI trading signal
 
-Portfolio & Trades: GET /portfolio, POST /trade
+/ai/signals/batch for multiple AI signals
 
-Training: POST /ai/train/{symbol}
+/stocks, /sectors, /stocks/{symbol} for market data
 
-Contributing
-Fork the repo & create your feature branch
+/portfolio and /trade for paper trading functions
 
-Commit changes
+/ai/train/{symbol} to start training for one stock
 
-Push & submit a Pull Request
+Contributing:
+Fork the repository, create a feature branch, commit your changes, and open a pull request.
 
-License
-MIT License
+License:
+MIT License, see LICENSE file.
 
-Credits
-Market data from Yahoo Finance
+Credits:
 
-AI & analytics built on PyTorch, FastAPI, Gymnasium
+Yahoo Finance for financial data
 
-UI with Next.js, React
+Gymnasium for reinforcement learning environment
 
-Special thanks to open-source contributors
+FastAPI and PyTorch for AI development
+
+Next.js and React for frontend development
+
+This project is maintained by a team of fintech engineers passionate about AI and trading automation.
