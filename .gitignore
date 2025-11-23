@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+algotrade-env/
+
+# Node.js (we'll add later)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+
+# Environment files
+.env
+
+# OS
+.DS_Store
