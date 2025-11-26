@@ -1,0 +1,281 @@
+.portfolio-view {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2rem;
+  color: #7f8c8d;
+}
+
+/* Portfolio Summary Styles */
+.portfolio-summary {
+  margin-bottom: 30px;
+}
+
+.portfolio-summary h2 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #3498db;
+}
+
+.summary-card h3 {
+  margin: 0 0 10px 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.amount {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.amount.profit {
+  color: #27ae60;
+}
+
+.amount.loss {
+  color: #e74c3c;
+}
+
+.percentage {
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+
+/* Holdings Styles */
+.holdings-section,
+.transactions-section {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.holdings-section h3,
+.transactions-section h3 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+  font-size: 1.4rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #7f8c8d;
+}
+
+.empty-state p {
+  margin: 5px 0;
+}
+
+.holdings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.holding-card {
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.holding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.symbol {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.quantity {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.holding-details {
+  margin-bottom: 15px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.detail-row span:first-child {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.price {
+  font-weight: 600;
+  color: #2c3e50; /* Fixed: Black color for prices */
+}
+
+.price.current {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #2c3e50; /* Fixed: Black color for current price */
+}
+
+.pl-section {
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.pl-amount {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.pl-percentage {
+  font-size: 0.9rem;
+}
+
+.profit {
+  color: #27ae60;
+}
+
+.loss {
+  color: #e74c3c;
+}
+
+/* Transactions Styles */
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid;
+  background: #f8f9fa;
+}
+
+.transaction-item.buy {
+  border-left-color: #27ae60;
+}
+
+.transaction-item.sell {
+  border-left-color: #e74c3c;
+}
+
+.transaction-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.transaction-type {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.type-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.type-badge.buy {
+  background: #d5f4e6;
+  color: #27ae60;
+}
+
+.type-badge.sell {
+  background: #fadbd8;
+  color: #e74c3c;
+}
+
+.transaction-info {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.transaction-info div {
+  font-weight: 600;
+  color: #2c3e50; /* Fixed: Black color for transaction prices */
+}
+
+.transaction-meta {
+  text-align: right;
+}
+
+.timestamp {
+  color: #95a5a6;
+  font-size: 0.8rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .portfolio-view {
+    padding: 10px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .holdings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .transaction-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .holdings-section,
+  .transactions-section {
+    padding: 15px;
+  }
+}

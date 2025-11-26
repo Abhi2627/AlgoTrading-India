@@ -1,18 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-
-interface Stock {
-  symbol: string;
-  name: string;
-  current_price: number;
-  change_percent: number;
-  volume: number;
-  market_cap: number;
-}
+import { Stock, SectorData } from '@/types/stock';
 
 interface HomeViewProps {
-  sectors: { [sector: string]: Stock[] };
+  sectors: SectorData;
 }
 
 export default function HomeView({ sectors }: HomeViewProps) {
@@ -34,7 +26,7 @@ export default function HomeView({ sectors }: HomeViewProps) {
       {/* Welcome Section */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Welcome to AlgoTrade India 🚀
+          Welcome to AlgoTrade India
         </h1>
         <p className="text-xl text-gray-600 mb-6">
           AI-Powered Trading Insights for Indian Markets
@@ -64,12 +56,7 @@ export default function HomeView({ sectors }: HomeViewProps) {
       {/* Top Stocks Section */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-            📈 Top Stocks by Market Cap
-            <span className="ml-2 bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full">
-              Live Data
-            </span>
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">Top Stocks by Market Cap</h2>
         </div>
 
         {/* Stocks List */}
@@ -144,7 +131,13 @@ export default function HomeView({ sectors }: HomeViewProps) {
                       </div>
                       <div>
                         <span className="text-gray-600">AI Signal: </span>
-                        <span className="font-bold text-green-600 bg-green-100 px-2 py-1 rounded text-xs">BUY</span>
+                        <span className={`font-bold px-2 py-1 rounded text-xs ${
+                          stock.ai_signal === 'BUY' ? 'bg-green-100 text-green-800' :
+                          stock.ai_signal === 'SELL' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {stock.ai_signal}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -158,7 +151,7 @@ export default function HomeView({ sectors }: HomeViewProps) {
       {/* Quick Stats */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-gray-900 mb-4">📊 Market Overview</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Market Overview</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Market Sentiment:</span>
@@ -176,7 +169,7 @@ export default function HomeView({ sectors }: HomeViewProps) {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-gray-900 mb-4">🤖 AI Insights</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">AI Insights</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Total Predictions:</span>

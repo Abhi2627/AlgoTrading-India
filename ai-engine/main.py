@@ -1,26 +1,16 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import yfinance as yf
 from datetime import datetime
 import uvicorn
-from nse_stocks import NSEStockUniverse
-from technical_analyzer import AdvancedTechnicalAnalyzer
-import pandas as pd
 import random
-from inference_engine import AIInferenceEngine
-from training_pipeline import AITrainingPipeline
+import time
 
-print("Starting AlgoTrade AI Engine with Technical Analysis...")
-
-#Initialize AI components after other initializations
-ai_inference = AIInferenceEngine()
-ai_training = AITrainingPipeline()
+print("Starting AlgoTrade AI Engine - Fast Response Version")
 
 # Create FastAPI app
 app = FastAPI(
     title="AlgoTrade AI Engine",
-    description="AI-Powered Trading System for Indian Markets with Technical Analysis",
+    description="AI-Powered Trading System for Indian Markets",
     version="2.0.0"
 )
 
@@ -32,306 +22,196 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize components
-stock_universe = NSEStockUniverse()
-technical_analyzer = AdvancedTechnicalAnalyzer()
+# Pre-defined stock universe for instant responses
+stock_universe = {
+    'Technology & IT': [
+        {'symbol': 'TCS.NS', 'name': 'Tata Consultancy Services Limited', 'base_price': 3450},
+        {'symbol': 'INFY.NS', 'name': 'Infosys Limited', 'base_price': 1650},
+        {'symbol': 'WIPRO.NS', 'name': 'Wipro Limited', 'base_price': 450},
+        {'symbol': 'HCLTECH.NS', 'name': 'HCL Technologies Limited', 'base_price': 1250}
+    ],
+    'Banking & Financial': [
+        {'symbol': 'HDFCBANK.NS', 'name': 'HDFC Bank Limited', 'base_price': 1650},
+        {'symbol': 'ICICIBANK.NS', 'name': 'ICICI Bank Limited', 'base_price': 980},
+        {'symbol': 'SBIN.NS', 'name': 'State Bank of India', 'base_price': 650},
+        {'symbol': 'AXISBANK.NS', 'name': 'Axis Bank Limited', 'base_price': 1100}
+    ],
+    'Energy & Oil & Gas': [
+        {'symbol': 'RELIANCE.NS', 'name': 'Reliance Industries Limited', 'base_price': 2450},
+        {'symbol': 'ONGC.NS', 'name': 'Oil and Natural Gas Corporation', 'base_price': 180}
+    ],
+    'Pharma & Healthcare': [
+        {'symbol': 'SUNPHARMA.NS', 'name': 'Sun Pharmaceutical Industries', 'base_price': 1250},
+        {'symbol': 'DRREDDY.NS', 'name': 'Dr. Reddys Laboratories', 'base_price': 5800}
+    ],
+    'Automobile': [
+        {'symbol': 'MARUTI.NS', 'name': 'Maruti Suzuki India Limited', 'base_price': 10500},
+        {'symbol': 'TATAMOTORS.NS', 'name': 'Tata Motors Limited', 'base_price': 750}
+    ]
+}
 
-# Store cached data
-stock_cache = {}
-cache_timestamp = None
-CACHE_DURATION = 300  # 5 minutes
+def generate_instant_stock_data(stock_info):
+    """Generate stock data instantly without external calls"""
+    base_price = stock_info['base_price']
+    change = random.uniform(-base_price * 0.05, base_price * 0.05)  # ±5% change
+    current_price = base_price + change
+    change_percent = (change / base_price) * 100
+    
+    # Generate realistic AI signals
+    if change_percent > 2:
+        ai_signal = 'BUY'
+        confidence = random.uniform(75, 95)
+    elif change_percent < -2:
+        ai_signal = 'SELL' 
+        confidence = random.uniform(75, 95)
+    else:
+        ai_signal = 'HOLD'
+        confidence = random.uniform(60, 80)
+    
+    return {
+        "symbol": stock_info['symbol'],
+        "name": stock_info['name'],
+        "current_price": round(current_price, 2),
+        "change_percent": round(change_percent, 2),
+        "volume": random.randint(100000, 5000000),
+        "market_cap": round(current_price * random.randint(1000000, 50000000), 2),
+        "ai_signal": ai_signal,
+        "ai_confidence": round(confidence, 1),
+        "signal_strength": round(random.uniform(-3, 3), 1),
+        "rsi": round(random.uniform(30, 70), 1)
+    }
 
 @app.get("/")
 async def root():
-    """Root endpoint - basic info"""
+    """Root endpoint - instant response"""
     return {
-        "message": "AlgoTrade AI Engine with Technical Analysis is running!",
+        "message": "AlgoTrade AI Engine - Fast Response",
         "timestamp": datetime.now().isoformat(),
-        "version": "2.0.0",
-        "stocks_tracked": len(stock_universe.get_stock_universe()),
-        "sectors": len(stock_universe.get_sectors())
+        "version": "2.0.0"
     }
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check - instant response"""
     return {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "technical_analysis": "active"
+        "response_time": "instant",
+        "timestamp": datetime.now().isoformat()
     }
 
-def get_cached_stock_data(use_demo_data=True):
-    """Get or refresh cached stock data - use demo data to avoid API limits"""
-    global stock_cache, cache_timestamp
+@app.get("/sectors")
+async def get_sectors():
+    """Get all sectors - instant response"""
+    start_time = time.time()
     
-    current_time = datetime.now().timestamp()
-    
-    if (cache_timestamp is None or 
-        (current_time - cache_timestamp) > CACHE_DURATION or 
-        not stock_cache):
+    try:
+        sectors_data = {}
         
-        print("Refreshing stock data cache...")
-        stock_cache = {}
+        for sector, stocks in stock_universe.items():
+            sectors_data[sector] = []
+            for stock_info in stocks:
+                stock_data = generate_instant_stock_data(stock_info)
+                sectors_data[sector].append(stock_data)
         
-        if use_demo_data:
-            # Use demo data to avoid API limits during development
-            print("Using demo data to avoid API rate limits")
-            for symbol in stock_universe.get_stock_universe()[:25]:  # Limit to 25 stocks
-                try:
-                    demo_data = stock_universe.get_demo_stock_data(symbol)
-                    
-                    # Add technical analysis signals to demo data
-                    stock_cache[symbol] = {
-                        "symbol": demo_data["symbol"],
-                        "name": demo_data["name"],
-                        "current_price": demo_data["current_price"],
-                        "previous_close": demo_data["previous_close"],
-                        "day_high": demo_data["current_price"] * 1.02,  # Mock high
-                        "day_low": demo_data["current_price"] * 0.98,   # Mock low
-                        "volume": demo_data["volume"],
-                        "market_cap": demo_data["market_cap"],
-                        "sector": demo_data["sector"],
-                        "technical_analysis": {
-                            "signal": random.choice(['BUY', 'SELL', 'HOLD']),
-                            "confidence": random.randint(70, 95),
-                            "strength": random.uniform(-3, 3),
-                            "rsi": random.uniform(20, 80)
-                        },
-                        "data_points": 100
-                    }
-                    
-                    print(f"Demo data for {symbol} - ₹{demo_data['current_price']}")
-                    
-                except Exception as e:
-                    stock_cache[symbol] = {"symbol": symbol, "error": str(e)}
-        else:
-            # Real data fetching (commented out for now)
-            print("Fetching real data (disabled to avoid rate limits)")
-            # ... (keep your original real data code here but commented)
+        response_time = round((time.time() - start_time) * 1000, 2)  # ms
         
-        cache_timestamp = current_time
-        print(f"Cache updated with {len(stock_cache)} stocks")
-    
-    return stock_cache
+        return {
+            "sectors": sectors_data,
+            "last_updated": datetime.now().isoformat(),
+            "response_time_ms": response_time,
+            "total_stocks": sum(len(stocks) for stocks in sectors_data.values())
+        }
+        
+    except Exception as e:
+        return {
+            "error": "Failed to fetch sectors data",
+            "details": str(e)
+        }
 
 @app.get("/stocks")
 async def get_all_stocks():
-    """Get basic info for all tracked stocks with technical analysis"""
-    cached_data = get_cached_stock_data()
-    stocks_data = []
+    """Get all stocks - instant response"""
+    start_time = time.time()
     
-    for symbol, data in cached_data.items():
-        if 'error' not in data:
-            stocks_data.append({
-                "symbol": data["symbol"],
-                "name": data["name"],
-                "current_price": data["current_price"],
-                "day_high": data["day_high"],
-                "day_low": data["day_low"],
-                "volume": data["volume"],
-                "ai_signal": data["technical_analysis"]["signal"],
-                "ai_confidence": data["technical_analysis"]["confidence"],
-                "signal_strength": data["technical_analysis"]["strength"]
-            })
-    
-    return {
-        "stocks": stocks_data,
-        "count": len(stocks_data),
-        "last_updated": datetime.now().isoformat(),
-        "analysis_type": "technical_indicators"
-    }
-
-@app.get("/sectors/ai")
-async def get_sectors_with_ai():
-    """Get sectors with AI-powered analysis"""
-    cached_data = get_cached_stock_data()
-    sectors_data = {}
-    sector_mapping = stock_universe.get_sectors()
-    
-    for sector, symbols in sector_mapping.items():
-        sectors_data[sector] = []
-        for symbol in symbols:
-            if symbol in cached_data and 'error' not in cached_data[symbol]:
-                stock_data = cached_data[symbol]
-                
-                # Get AI signal for this stock
-                ai_signal = ai_inference.get_ai_signal(symbol)
-                
-                stock_info = {
+    try:
+        stocks_data = []
+        
+        for sector_stocks in stock_universe.values():
+            for stock_info in sector_stocks:
+                stock_data = generate_instant_stock_data(stock_info)
+                stocks_data.append({
                     "symbol": stock_data["symbol"],
                     "name": stock_data["name"],
                     "current_price": stock_data["current_price"],
-                    "change_percent": random.uniform(-5, 5),  # Mock change
+                    "day_high": round(stock_data["current_price"] * 1.02, 2),
+                    "day_low": round(stock_data["current_price"] * 0.98, 2),
                     "volume": stock_data["volume"],
-                    "market_cap": stock_data["market_cap"],
-                    "ai_signal": ai_signal["signal"],
-                    "ai_confidence": ai_signal["confidence"],
-                    "signal_strength": ai_signal.get("signal_strength", 0),
-                    "model_used": ai_signal.get("model_used", "Technical"),
-                    "rsi": random.uniform(20, 80)  # Mock RSI
-                }
-                sectors_data[sector].append(stock_info)
-    
-    # Calculate sector-level AI sentiment
-    sector_sentiment = {}
-    for sector, stocks in sectors_data.items():
-        if stocks:
-            buy_signals = sum(1 for s in stocks if s['ai_signal'] == 'BUY')
-            total_stocks = len(stocks)
-            sector_sentiment[sector] = {
-                'bullish_percentage': (buy_signals / total_stocks) * 100,
-                'total_stocks': total_stocks,
-                'buy_signals': buy_signals,
-                'overall_sentiment': 'BULLISH' if buy_signals > total_stocks / 2 else 'BEARISH'
-            }
-    
-    return {
-        "sectors": sectors_data,
-        "sector_sentiment": sector_sentiment,
-        "last_updated": datetime.now().isoformat(),
-        "ai_models_active": True
-    }
-
-@app.get("/analysis/{symbol}")
-async def get_detailed_analysis(symbol: str):
-    """Get detailed technical analysis for a stock"""
-    try:
-        if not symbol.endswith('.NS'):
-            symbol += '.NS'
+                    "ai_signal": stock_data["ai_signal"],
+                    "ai_confidence": stock_data["ai_confidence"],
+                    "signal_strength": stock_data["signal_strength"]
+                })
         
-        stock = yf.Ticker(symbol)
-        hist_data = stock.history(period="6mo")  # 6 months for better analysis
-        
-        if hist_data.empty:
-            return {"error": "No data available"}
-        
-        # Calculate all indicators
-        analyzed_data = technical_analyzer.calculate_all_indicators(hist_data)
-        current_signal = technical_analyzer.get_current_signal(analyzed_data)
-        
-        # Get the latest 10 days of signals for trend analysis
-        recent_signals = analyzed_data[['signal', 'signal_strength']].tail(10)
-        
-        # Calculate signal consistency
-        signal_counts = recent_signals['signal'].value_counts()
-        dominant_signal = signal_counts.idxmax() if not signal_counts.empty else 'HOLD'
-        consistency = (signal_counts.max() / len(recent_signals)) * 100
+        response_time = round((time.time() - start_time) * 1000, 2)
         
         return {
-            "symbol": symbol,
-            "current_signal": current_signal,
-            "signal_trend": {
-                "dominant_signal": dominant_signal,
-                "consistency": round(consistency, 2),
-                "recent_signals": recent_signals.to_dict('records')
-            },
-            "key_levels": {
-                "support": analyzed_data['bb_lower'].iloc[-1],
-                "resistance": analyzed_data['bb_upper'].iloc[-1],
-                "trend": "BULLISH" if analyzed_data['sma_20'].iloc[-1] > analyzed_data['sma_50'].iloc[-1] else "BEARISH"
-            },
-            "analysis_timestamp": datetime.now().isoformat()
+            "stocks": stocks_data,
+            "count": len(stocks_data),
+            "last_updated": datetime.now().isoformat(),
+            "response_time_ms": response_time
         }
         
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "error": "Failed to fetch stocks data",
+            "details": str(e)
+        }
 
 @app.get("/ai/signal/{symbol}")
 async def get_ai_signal(symbol: str):
-    """Get AI trading signal for a specific stock"""
+    """Get AI signal - instant response"""
+    start_time = time.time()
+    
     try:
         if not symbol.endswith('.NS'):
             symbol += '.NS'
         
-        signal = ai_inference.get_ai_signal(symbol)
+        # Find the stock in our universe
+        stock_info = None
+        for sector_stocks in stock_universe.values():
+            for stock in sector_stocks:
+                if stock['symbol'] == symbol:
+                    stock_info = stock
+                    break
+            if stock_info:
+                break
+        
+        if not stock_info:
+            return {
+                "error": f"Stock {symbol} not found",
+                "symbol": symbol
+            }
+        
+        stock_data = generate_instant_stock_data(stock_info)
+        response_time = round((time.time() - start_time) * 1000, 2)
+        
         return {
-            "success": True,
-            "data": signal,
-            "timestamp": datetime.now().isoformat()
+            "symbol": symbol,
+            "signal": stock_data["ai_signal"],
+            "confidence": stock_data["ai_confidence"],
+            "current_price": stock_data["current_price"],
+            "timestamp": datetime.now().isoformat(),
+            "response_time_ms": response_time
         }
         
     except Exception as e:
         return {
-            "success": False,
             "error": str(e),
             "symbol": symbol
         }
-
-@app.get("/ai/signals/batch")
-async def get_batch_ai_signals():
-    """Get AI signals for all tracked stocks"""
-    try:
-        symbols = stock_universe.get_stock_universe()[:15]  # Limit for performance
-        batch_signals = ai_inference.get_batch_signals(symbols)
-        
-        return {
-            "success": True,
-            "data": batch_signals,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
-@app.post("/ai/train/{symbol}")
-async def train_ai_model(symbol: str, episodes: int = 50):
-    """Train AI model for a specific stock"""
-    try:
-        if not symbol.endswith('.NS'):
-            symbol += '.NS'
-        
-        print(f"🎯 Starting AI training for {symbol}...")
-        training_result = ai_training.train_agent(symbol, episodes=episodes)
-        
-        return {
-            "success": True,
-            "data": training_result,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "symbol": symbol
-        }
-
-@app.get("/ai/models/available")
-async def get_available_models():
-    """Get list of available trained models"""
-    try:
-        models_dir = "models"
-        if not os.path.exists(models_dir):
-            return {"success": True, "data": {"available_models": []}}
-        
-        model_files = [f for f in os.listdir(models_dir) if f.endswith('.pth')]
-        available_models = [f.replace('_best.pth', '').replace('_final.pth', '') 
-                          for f in model_files]
-        available_models = list(set(available_models))  # Remove duplicates
-        
-        return {
-            "success": True,
-            "data": {
-                "available_models": available_models,
-                "total_models": len(available_models)
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
 
 if __name__ == "__main__":
     print("Starting server on http://localhost:8000")
     print("API Documentation: http://localhost:8000/docs")
-    print("Technical Analysis: ACTIVE")
-    print("Stocks Tracked:", len(stock_universe.get_stock_universe()))
+    print("Response Time: Instant")
+    print("Total Stocks:", sum(len(stocks) for stocks in stock_universe.values()))
     uvicorn.run(app, host="0.0.0.0", port=8000)

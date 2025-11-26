@@ -1,15 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-
-interface Stock {
-  symbol: string;
-  name: string;
-  current_price: number;
-  change_percent: number;
-  volume: number;
-  market_cap: number;
-}
+import { Stock } from '@/types/stock';
 
 interface StockListItemProps {
   stock: Stock;
@@ -19,6 +11,16 @@ interface StockListItemProps {
 
 export default function StockListItem({ stock, isExpanded, onToggle }: StockListItemProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Added logic to handle missing data gracefully (defaulting to 0 for calculations)
+  const currentPrice = stock.current_price ?? 0;
+  const changePercent = stock.change_percent ?? 0;
+  const volume = stock.volume ?? 0;
+  const marketCap = stock.market_cap ?? 0;
+  const aiConfidence = stock.ai_confidence ?? 0;
+  const aiSignal = stock.ai_signal;
+  const signalStrength = stock.signal_strength ?? 'Moderate';
+
 
   const formatNumber = (num: number) => {
     if (num >= 10000000) {
@@ -56,21 +58,21 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
               {stock.symbol.replace('.NS', '')}
             </h3>
             <span className={`text-sm font-bold ${
-              stock.change_percent >= 0 ? 'text-green-600' : 'text-red-600'
+              changePercent >= 0 ? 'text-green-600' : 'text-red-600'
             }`}>
-              {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent}%
+              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
             </span>
           </div>
           <p className="text-sm text-gray-600 truncate">{stock.name}</p>
         </div>
 
-        {/* Current Price */}
+        {/* Current Price and Volume - Applied consistent dark color (text-gray-900) */}
         <div className="text-right ml-4">
           <div className="text-lg font-bold text-gray-900">
-            ₹{stock.current_price || 'N/A'}
+            {currentPrice ? `₹${currentPrice.toFixed(2)}` : 'N/A'}
           </div>
-          <div className="text-sm text-gray-500">
-            {stock.volume ? `${(stock.volume / 1000).toFixed(0)}K` : 'N/A'} vol
+          <div className="text-sm text-gray-700"> {/* Changed to text-gray-700 for better contrast against 900 */}
+            {volume ? `${(volume / 1000).toFixed(0)}K` : 'N/A'} vol
           </div>
         </div>
 
@@ -99,15 +101,15 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
                 <h4 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Basic Info</h4>
                 <div>
                   <span className="text-gray-600">Symbol: </span>
-                  <span className="font-medium">{stock.symbol}</span>
+                  <span className="font-medium text-gray-800">{stock.symbol}</span> {/* Ensured dark color */}
                 </div>
                 <div>
                   <span className="text-gray-600">Company: </span>
-                  <span className="font-medium">{stock.name}</span>
+                  <span className="font-medium text-right text-gray-800">{stock.name}</span> {/* Ensured dark color */}
                 </div>
                 <div>
                   <span className="text-gray-600">Market Cap: </span>
-                  <span className="font-medium">{stock.market_cap ? formatNumber(stock.market_cap) : 'N/A'}</span>
+                  <span className="font-medium text-gray-800">{marketCap ? formatNumber(marketCap) : 'N/A'}</span> {/* Ensured dark color */}
                 </div>
               </div>
 
@@ -116,19 +118,19 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
                 <h4 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Price Data</h4>
                 <div>
                   <span className="text-gray-600">Current: </span>
-                  <span className="font-bold text-green-600">₹{stock.current_price || 'N/A'}</span>
+                  <span className="font-bold text-gray-900">₹{currentPrice.toFixed(2) || 'N/A'}</span> {/* Ensured dark color */}
                 </div>
                 <div>
                   <span className="text-gray-600">Change: </span>
                   <span className={`font-bold ${
-                    stock.change_percent >= 0 ? 'text-green-600' : 'text-red-600'
+                    changePercent >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent}%
+                    {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600">Volume: </span>
-                  <span className="font-medium">{stock.volume?.toLocaleString('en-IN') || 'N/A'}</span>
+                  <span className="font-medium text-gray-800">{volume?.toLocaleString('en-IN') || 'N/A'}</span> {/* Ensured dark color */}
                 </div>
               </div>
 
@@ -137,15 +139,21 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
                 <h4 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">AI Analysis</h4>
                 <div>
                   <span className="text-gray-600">Signal: </span>
-                  <span className="font-bold text-green-600 bg-green-100 px-2 py-1 rounded text-xs">BUY</span>
+                  <span className={`font-bold px-2 py-1 rounded text-xs ${
+                    aiSignal === 'BUY' ? 'bg-green-100 text-green-800' :
+                    aiSignal === 'SELL' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {aiSignal}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-600">Confidence: </span>
-                  <span className="font-bold text-purple-600">92%</span>
+                  <span className="font-bold text-purple-600">{aiConfidence.toFixed(1)}%</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Risk Level: </span>
-                  <span className="font-bold text-orange-600">Medium</span>
+                  <span className="text-gray-600">Signal Strength: </span>
+                  <span className="font-bold text-blue-600">{signalStrength}</span>
                 </div>
               </div>
 
@@ -154,24 +162,25 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
                 <h4 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Actions</h4>
                 <div className="flex space-x-2">
                   <button className="flex-1 bg-green-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-green-700 transition">
-                    📈 Buy
+                    Buy
                   </button>
                   <button className="flex-1 bg-red-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-red-700 transition">
-                    📉 Sell
+                    Sell
                   </button>
                 </div>
                 <button className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-blue-700 transition">
-                  📊 View Details
+                  View Details
                 </button>
               </div>
             </div>
 
             {/* AI Reasoning */}
             <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-              <h5 className="font-semibold text-blue-800 text-sm mb-1">🤖 AI Reasoning</h5>
+              <h5 className="font-semibold text-blue-800 text-sm mb-1">AI Reasoning</h5>
               <p className="text-xs text-blue-700">
-                Strong bullish momentum with high volume. RSI indicates oversold conditions with potential reversal. 
-                Sector outlook positive for next quarter.
+                {aiSignal === 'BUY' ? 'Strong bullish momentum with high volume. RSI indicates oversold conditions with potential reversal. Sector outlook positive for next quarter.' :
+                 aiSignal === 'SELL' ? 'Bearish signals detected with declining volume. Technical indicators suggest potential downturn. Consider profit booking.' :
+                 'Neutral market conditions. Waiting for clearer signals. Monitor key support and resistance levels.'}
               </p>
             </div>
           </div>
