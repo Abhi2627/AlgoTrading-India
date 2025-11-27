@@ -7,8 +7,10 @@ class PortfolioManager {
             capital: 1000,
             holdings: {},
             transactions: [],
+            currentValue: 1000
         };
         this.currentPortfolio = null;
+        this.databaseAvailable = true;
         this.loadFromDatabase(); // Load existing data from DB
     }
 
@@ -40,10 +42,17 @@ class PortfolioManager {
             }
         } catch (error) {
             console.error('❌ Error loading from database:', error.message);
+            console.log('🔄 Using in-memory portfolio (database unavailable)');
+            this.databaseAvailable = false;
         }
     }
 
     async saveToDatabase() {
+        if (!this.databaseAvailable) {
+            console.log('💾 Database unavailable - using in-memory storage only');
+            return;
+        }
+
         try {
             // Convert our holdings object to array for database
             const holdingsArray = Object.entries(this.portfolio.holdings).map(([symbol, holding]) => ({
@@ -67,6 +76,7 @@ class PortfolioManager {
             console.log('💾 Portfolio saved to database');
         } catch (error) {
             console.error('❌ Error saving to database:', error.message);
+            this.databaseAvailable = false;
         }
     }
 
@@ -108,7 +118,6 @@ class PortfolioManager {
                 }
             }
 
-            // CORRECTED: Calculate current total value properly
             const currentTotalValue = this.portfolio.capital + totalHoldingsValue;
             const totalInvested = this.calculateTotalInvested();
             const totalProfitLoss = currentTotalValue - 1000; // Based on initial 1000 capital
@@ -116,7 +125,7 @@ class PortfolioManager {
             return {
                 // Basic portfolio info
                 capital: this.portfolio.capital,
-                currentTotalValue: currentTotalValue, // This should be capital + holdingsValue
+                currentTotalValue: currentTotalValue,
                 totalInvested: totalInvested,
                 totalProfitLoss: totalProfitLoss,
                 totalProfitLossPercentage: (totalProfitLoss / 1000) * 100,
@@ -170,7 +179,7 @@ class PortfolioManager {
             
             // Get current market price
             const currentPrice = await marketDataService.getCurrentPrice(symbol);
-            console.log(`💰 Current market price for ${symbol}: $${currentPrice}`);
+            console.log(`💰 Current market price for ${symbol}: ₹${currentPrice}`);
             
             return await this.buyStockAtPrice(symbol, quantity, currentPrice);
         } catch (error) {
@@ -183,7 +192,7 @@ class PortfolioManager {
         
         // Validation
         if (cost > this.portfolio.capital) {
-            throw new Error(`Insufficient capital. Needed: $${cost.toFixed(2)}, Available: $${this.portfolio.capital.toFixed(2)}`);
+            throw new Error(`Insufficient capital. Needed: ₹${cost.toFixed(2)}, Available: ₹${this.portfolio.capital.toFixed(2)}`);
         }
 
         if (quantity <= 0) {
@@ -224,7 +233,7 @@ class PortfolioManager {
         // Save to database
         await this.saveToDatabase();
         
-        console.log(`✅ Successfully bought ${quantity} ${symbol} at $${price} each (Total: $${cost.toFixed(2)})`);
+        console.log(`✅ Successfully bought ${quantity} ${symbol} at ₹${price} each (Total: ₹${cost.toFixed(2)})`);
         
         return this.getPortfolioSummary();
     }
@@ -236,7 +245,7 @@ class PortfolioManager {
             
             // Get current market price
             const currentPrice = await marketDataService.getCurrentPrice(symbol);
-            console.log(`💰 Current market price for ${symbol}: $${currentPrice}`);
+            console.log(`💰 Current market price for ${symbol}: ₹${currentPrice}`);
             
             return await this.sellStockAtPrice(symbol, quantity, currentPrice);
         } catch (error) {
@@ -285,7 +294,7 @@ class PortfolioManager {
         // Save to database
         await this.saveToDatabase();
         
-        console.log(`✅ Successfully sold ${quantity} ${symbol} at $${price} each (Total: $${revenue.toFixed(2)})`);
+        console.log(`✅ Successfully sold ${quantity} ${symbol} at ₹${price} each (Total: ₹${revenue.toFixed(2)})`);
         
         return this.getPortfolioSummary();
     }
@@ -295,6 +304,7 @@ class PortfolioManager {
             capital: capital,
             holdings: {},
             transactions: [],
+            currentValue: capital
         };
         
         await this.saveToDatabase();
@@ -302,7 +312,7 @@ class PortfolioManager {
         return this.getPortfolioSummary();
     }
 
-    // NEW: Get portfolio performance analytics
+    // Get portfolio performance analytics
     async getPortfolioAnalytics() {
         const summary = await this.getPortfolioSummary();
         

@@ -45,7 +45,7 @@ export default function StockListItem({ stock, isExpanded, onToggle }: StockList
         onClick={onToggle}
       >
         {/* Stock Icon/Initial */}
-        <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-4">
+        <div className="shrink-0 w-12 h-12 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-4">
           <span className="text-white font-bold text-sm">
             {stock.symbol.replace('.NS', '').substring(0, 2)}
           </span>

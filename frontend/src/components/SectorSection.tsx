@@ -34,7 +34,7 @@ export default function SectorSection({ sector, stocks }: SectorSectionProps) {
     <div className="bg-white rounded-lg shadow-md border overflow-hidden mb-6">
       {/* Sector Header */}
       <div 
-        className="bg-gradient-to-r from-blue-500 to-purple-600 p-4 cursor-pointer"
+        className="bg-linear-to-r from-blue-500 to-purple-600 p-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-center">
@@ -60,7 +60,7 @@ export default function SectorSection({ sector, stocks }: SectorSectionProps) {
         <div className="p-4">
           {/* Top Stock Highlight */}
           {topStock && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border">
+            <div className="mb-6 p-4 bg-linear-to-r from-green-50 to-blue-50 rounded-lg border">
               <h3 className="font-bold text-gray-800 mb-2 flex items-center">
                 🎯 AI Top Pick for {sector}
                 <span className="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
