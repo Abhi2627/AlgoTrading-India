@@ -1,54 +1,50 @@
-# Project Structure Documentation
+This file is now redundant because the README covers the structure well, but if you want to keep it for technical depth, here is the updated version matching the Microservices architecture.
 
-## Architecture Overview
+```markdown
+# Architecture & Design Documentation
 
-AlgoTrade India follows a microservices architecture with three main services:
+## System Architecture
+Aladdin AI uses a decoupled **Microservices Architecture**. The heavy lifting (AI/ML) is handled by Python, while the user experience is handled by Next.js. They communicate via REST API and share a cloud database.
 
-### 1. AI Engine (Python FastAPI)
-- **Port**: 8000
-- **Role**: AI signal generation and technical analysis
-- **Key Files**:
-  - `main.py` - FastAPI server and endpoints
-  - `dqn_model.py` - Deep Q-Network implementation
-  - `trading_environment.py` - Custom Gymnasium environment
-  - `technical_analyzer.py` - Technical analysis calculations
-  - `rag_system.py` - News sentiment analysis
-  - `data_manager.py` - Data acquisition and management
+### 1. The AI Engine (Python FastAPI)
+* **Responsibility:** The core logic center. It does not store user sessions but handles all data processing.
+* **Data Pipeline:**
+    * **Ingestion:** Fetches raw OHLCV data via `yfinance` (Stocks) and `ccxt` (Crypto).
+    * **Processing:** `pandas-ta` calculates 20+ technical indicators (RSI, Bollinger, MACD).
+    * **Inference:**
+        * **LSTM:** Predicts the next day's closing price based on the last 60 days.
+        * **RAG:** Scrapes Google News, vectorizes headlines using `all-MiniLM-L6-v2`, and calculates a Sentiment Score (-1 to +1).
+* **Storage:** Saves prediction logs and trade execution orders to MongoDB.
 
-### 2. Backend Server (Node.js Express)
-- **Port**: 3001
-- **Role**: Business logic and API orchestration
-- **Key Files**:
-  - `server.js` - Express server and routing
-  - API routes for frontend communication
+### 2. The Database (MongoDB Atlas)
+* **Role:** The "Source of Truth" for persistence.
+* **Collections:**
+    * `users`: Stores wallet balance (`₹1000`), portfolio holdings, and monthly refill timestamps.
+    * `trades`: Immutable ledger of every buy/sell transaction.
+    * `predictions`: Historical log of AI signals (used for backtesting accuracy later).
 
-### 3. Frontend Dashboard (Next.js)
-- **Port**: 3000
-- **Role**: User interface and visualization
-- **Key Files**:
-  - `src/app/page.tsx` - Main dashboard
-  - `src/components/` - React components
-  - Sector navigation, stock lists, portfolio views
+### 3. The Frontend (Next.js 14)
+* **Responsibility:** Visualization and Interaction.
+* **Key Components:**
+    * `StockDashboard.tsx`: The main trading terminal. Uses `lightweight-charts` for rendering financial data.
+    * `GlobalSearch.tsx`: Smart autocomplete for assets.
+    * `HomeView.tsx`: Displays wallet balance and trade history.
+* **Routing:** Uses Dynamic Routing (`/asset/[symbol]`) to generate pages for any asset on the fly.
 
-## Data Flow
+## Data Flow: "The Trading Loop"
 
-1. **Frontend** → Requests data from Backend
-2. **Backend** → Proxies requests to AI Engine
-3. **AI Engine** → Fetches market data → Calculates signals
-4. **AI Engine** → Returns AI signals to Backend
-5. **Backend** → Formats data → Sends to Frontend
-6. **Frontend** → Displays data with interactive UI
-
-## Key Features Implementation
-
-### AI Training Pipeline
-- Uses Deep Reinforcement Learning (DQN)
-- Trains on historical market data
-- Incorporates technical indicators and market sentiment
-- Saves trained models for real-time inference
-
-### Real-time Dashboard
-- Sector-based stock organization
-- AI confidence scores and signals
-- Interactive hover previews
-- Portfolio performance tracking
+1.  **User Search:** User types "BTC" → Frontend routes to `/asset/BTC-USD`.
+2.  **Analysis Request:** Frontend calls `GET /predict/BTC-USD`.
+3.  **AI Execution:**
+    * Backend checks if a trained model exists.
+    * Fetches live price.
+    * Runs LSTM prediction.
+    * Scrapes news & runs Vector Sentiment analysis.
+    * Returns JSON (Price, Signal, Confidence, News).
+4.  **Decision:** User clicks "BUY".
+5.  **Execution:**
+    * Frontend calls `POST /trade`.
+    * Backend verifies funds in MongoDB `users` collection.
+    * Backend updates Balance & Portfolio.
+    * Backend logs transaction to `trades`.
+6.  **Feedback:** Frontend updates the Wallet UI instantly.

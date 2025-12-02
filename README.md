@@ -1,113 +1,62 @@
-AlgoTrade India – AI Powered NSE Trading Platform
+# 🧞‍♂️ Aladdin AI - Institutional-Grade Trading Intelligence
 
-AlgoTrade India is a full-stack algorithmic trading platform for the Indian stock markets. It uses deep reinforcement learning, real-time analytics, and AI-driven decisions for autonomous NSE stock trading.
+**Aladdin AI** is a next-generation algorithmic trading platform that combines **Quantitative Analysis** (LSTM Neural Networks) with **Semantic Intelligence** (Vector RAG) to provide institutional-grade buy/sell signals for Stocks, Crypto, and Forex.
 
-Features:
+Unlike traditional bots that rely solely on technical indicators, Aladdin "reads" the news using Vector Embeddings to understand market sentiment and "remembers" price patterns using Long Short-Term Memory networks.
 
-Autonomous AI stock trading with Deep Q-Network learning.
+---
 
-More than 20 technical indicators, including RSI, MACD, and Bollinger Bands.
+## 🚀 Key Features
 
-Market news sentiment analysis with a RAG system.
+### 🧠 **Hybrid AI Brain**
+* **Quantitative:** Uses **LSTM (Long Short-Term Memory)** neural networks trained on 5 years of historical data to predict price movements.
+* **Semantic:** Uses **RAG (Retrieval-Augmented Generation)** with `all-MiniLM-L6-v2` vector embeddings to analyze news sentiment (Bullish/Bearish) contextually, not just by keywords.
 
-Sector-wise analysis with AI-based confidence scores.
+### 🌍 **Multi-Asset Support**
+* **Indian Stocks (NSE):** Real-time analysis of Nifty 50 & mid-cap stocks.
+* **Crypto:** Live analysis of Bitcoin, Ethereum, Solana, etc.
+* **Forex:** Major currency pairs (EUR/USD, GBP/USD).
 
-Portfolio risk management with dynamic position sizes and stops.
+### 💼 **Pro Trading Terminal**
+* **Live Charts:** Interactive TradingView-style candlestick charts.
+* **Smart Wallet:** Simulated trading account with a ₹1,000 monthly refill system.
+* **Portfolio Tracking:** Real-time tracking of holdings, profit/loss, and transaction history.
+* **Universal Search:** Google-style smart search for any asset class.
 
-Paper trading mode with a simulated INR 1000 portfolio.
+---
 
-Sharpe ratio and drawdown analytics.
+## 🛠️ Tech Stack
 
-Real-time interactive dashboard and detailed market summaries.
+### **AI Engine (The Brain) - Python**
+* **Framework:** FastAPI (High-performance Async API)
+* **ML/AI:** PyTorch (LSTM), Sentence-Transformers (Vector RAG), Scikit-Learn
+* **Data:** yfinance (Stocks), CCXT (Crypto), MFAPI (Mutual Funds)
+* **Database:** MongoDB Atlas (Cloud Storage for User Data & Predictions)
 
-Tech Stack:
+### **Frontend (The Face) - TypeScript**
+* **Framework:** Next.js 14 (App Router)
+* **UI:** Tailwind CSS, Lucide Icons
+* **Charts:** TradingView Lightweight Charts
+* **State:** React Hooks for real-time updates
 
-AI Engine: FastAPI, PyTorch, Gymnasium, TA-Lib, yFinance
+---
 
-Backend: Node.js, Express.js, Axios, CORS
+## 📂 Project Structure
 
-Frontend: Next.js 14, React 18, TypeScript, Tailwind CSS, Framer Motion
-
-Project Structure:
-algotrade-india/
-ai-engine/
-src/
-models/
-historical_data/
-requirements.txt
-backend/
-frontend/
-docs/
-.gitignore
-README.md
-
-Getting Started:
-
-Clone the repository:
-git clone https://github.com/yourusername/algotrade-india.git
-cd algotrade-india
-
-Set up the Python virtual environment:
-python -m venv algotrade-env
-source algotrade-env/bin/activate
-
-Install the AI engine dependencies:
-cd ai-engine
-pip install -r requirements.txt
-
-Set up the backend:
-cd ../backend
-npm install
-
-Set up the frontend:
-cd ../frontend
-npm install
-
-Running the Platform:
-Open three terminals, one for each major component.
-
-AI Engine:
-cd ai-engine
-source ../algotrade-env/bin/activate
-python main.py
-
-Backend:
-cd backend
-npm run dev
-
-Frontend:
-cd frontend
-npm run dev
-
-Use http://localhost:3000 for the dashboard
-API docs are at http://localhost:8000/docs
-
-API Endpoints:
-
-/ai/signal/{symbol} for single AI trading signal
-
-/ai/signals/batch for multiple AI signals
-
-/stocks, /sectors, /stocks/{symbol} for market data
-
-/portfolio and /trade for paper trading functions
-
-/ai/train/{symbol} to start training for one stock
-
-Contributing:
-Fork the repository, create a feature branch, commit your changes, and open a pull request.
-
-License:
-MIT License, see LICENSE file.
-
-Credits:
-
-Yahoo Finance for financial data
-
-Gymnasium for reinforcement learning environment
-
-FastAPI and PyTorch for AI development
-
-Next.js and React for frontend development
-
-This project is maintained by a team of fintech engineers passionate about AI and trading automation.
+```text
+aladdin-ai/
+├── ai-engine/                  # 🐍 Python AI Microservice
+│   ├── app/
+│   │   ├── ml/                 # LSTM Models & RAG Engine
+│   │   ├── services/           # Data Loaders (Yahoo/Binance) & MongoDB
+│   │   ├── processing/         # Technical Indicators (RSI, MACD)
+│   │   └── main.py             # FastAPI Entry Point
+│   ├── requirements.txt        # Python Dependencies
+│   └── Procfile                # Render Deployment Config
+│
+└── frontend/                   # ⚛️ Next.js Web Application
+    ├── src/
+    │   ├── app/                # Pages & Dynamic Routing
+    │   ├── components/         # Dashboard Widgets (Charts, Wallet)
+    │   └── lib/                # API Connectors
+    └── package.json            # JS Dependencies
