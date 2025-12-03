@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 from app.services.data_loader import MarketDataLoader
 from app.processing.indicators import TechnicalAnalyzer
 from app.ml.model import AladdinPricePredictor
+from app.ml.transformer_model import TimeSeriesTransformer
 import time
 
 # Configuration
@@ -54,7 +55,7 @@ def train_model(symbol="RELIANCE.NS"):
     y_train = torch.from_numpy(y).float()
     
     # 3. Initialize Model
-    model = AladdinPricePredictor(input_dim=X.shape[2])
+    model = TimeSeriesTransformer(input_dim=X.shape[2])
     criterion = nn.MSELoss() # Loss function (Mean Squared Error)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     
@@ -77,8 +78,8 @@ def train_model(symbol="RELIANCE.NS"):
     print(f"✅ Training Complete in {time.time() - start_time:.2f}s")
     
     # Save the trained brain
-    torch.save(model.state_dict(), f"app/ml/models/{symbol}_lstm.pth")
-    print(f"💾 Model saved to app/ml/models/{symbol}_lstm.pth")
+    torch.save(model.state_dict(), f"app/ml/models/{symbol}_transformer.pth")
+    print(f"💾 Transformer Model saved to app/ml/models/{symbol}_transformer.pth")
 
 if __name__ == "__main__":
     import argparse

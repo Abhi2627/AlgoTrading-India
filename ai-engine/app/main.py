@@ -7,6 +7,8 @@ from datetime import datetime
 import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from app.services.report_engine import ReportEngine
+from app.services.backtester import BacktestEngine
 import os
 
 # Custom Modules
@@ -304,6 +306,53 @@ async def reset_account():
         upsert=True
     )
     return {"status": "success", "message": "Account reset to ₹1000"}
+
+#Report Endpoints
+@app.post("/reports/generate/{type}")
+async def generate_report(type: str):
+    """
+    Manually trigger a report generation.
+    Type: 'pre' (Morning) or 'post' (Evening)
+    """
+    engine = ReportEngine()
+    
+    # We use a small watchlist for the demo
+    watchlist = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "BTC-USD"]
+    
+    if type == "pre":
+        report = await engine.generate_pre_market_report(watchlist)
+        return {"status": "success", "report": str(report['_id'])}
+    elif type == "post":
+        report = await engine.generate_post_market_report()
+        return {"status": "success", "data": report}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid report type")
+
+@app.get("/reports/latest")
+async def get_latest_reports():
+    """
+    Fetch the latest Pre and Post market reports for the Dashboard.
+    """
+    # Get latest Pre-market
+    pre = await db.db.reports.find_one({"type": "PRE_MARKET"}, sort=[("timestamp", -1)])
+    # Get latest Post-market
+    post = await db.db.reports.find_one({"type": "POST_MARKET"}, sort=[("timestamp", -1)])
+    
+    # Convert ObjectIDs to string for JSON serialization
+    if pre: pre["_id"] = str(pre["_id"])
+    if post: post["_id"] = str(post["_id"])
+    
+    return {"pre_market": pre, "post_market": post}
+
+# Backtest Endpoint
+@app.get("/backtest/{symbol}")
+async def run_backtest(symbol: str):
+    """
+    Runs a simulation on historical data to verify AI performance.
+    """
+    engine = BacktestEngine()
+    result = await engine.run_backtest(symbol)
+    return result
 
 if __name__ == "__main__":
     import uvicorn
