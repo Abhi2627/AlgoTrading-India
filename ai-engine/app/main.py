@@ -350,8 +350,12 @@ async def run_backtest(symbol: str):
     """
     Runs a simulation on historical data to verify AI performance.
     """
+    user_id = "demo_user"
+    user = await db.db.users.find_one({"user_id": user_id})
+    current_capital = user["balance"] if user else 1000.0
+
     engine = BacktestEngine()
-    result = await engine.run_backtest(symbol)
+    result = await engine.run_backtest(symbol, current_capital)
     return result
 
 if __name__ == "__main__":

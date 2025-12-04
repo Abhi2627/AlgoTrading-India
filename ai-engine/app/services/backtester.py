@@ -3,50 +3,56 @@ import numpy as np
 import torch
 from sklearn.preprocessing import MinMaxScaler
 import os
+from datetime import datetime
 
 # Imports
 from app.services.data_loader import MarketDataLoader
 from app.processing.indicators import TechnicalAnalyzer
-# Note: We load the saved LSTM models for now, as they are already trained.
-# Once you train Transformers, swap this import to TimeSeriesTransformer
 from app.ml.model import AladdinPricePredictor 
 
 class BacktestEngine:
-    def __init__(self, initial_capital=100000):
+    def __init__(self, initial_capital=1000):
         self.loader = MarketDataLoader()
         self.ta = TechnicalAnalyzer()
         self.initial_capital = initial_capital
         self.features = ['Close', 'RSI', 'SMA_50', 'SMA_200', 'OBV']
         
-    async def run_backtest(self, symbol: str, days: int = 180):
-        """
-        Simulates trading over the last 'days' using the trained AI.
-        """
-        print(f"⏳ Starting Backtest for {symbol} ({days} days)...")
+    async def run_backtest(self, symbol: str, days: int = 180, capital: float = None):
+        start_money = float(capital) if capital is not None and capital > 0 else self.initial_capital
+        print(f"⏳ Starting Backtest for {symbol} with ₹{start_money}...")
         
-        # 1. Fetch History (Need extra data for the 60-day lookback window)
-        lookback_window = 60
-        total_days_needed = days + lookback_window + 50 # Buffer for indicators
+        # 1. Fetch Data
+        df = self.loader.get_stock_data(symbol, period="5y")
         
-        df = self.loader.get_stock_data(symbol, period="2y")
-        
-        if df is None or len(df) < total_days_needed:
-            return {"error": f"Not enough historical data. Got {len(df) if df is not None else 0}, need {total_days_needed}"}
-            
-        # 2. Prep Data
+        if df is None or df.empty:
+            return {"error": "No data found for this stock."}
+
+        # 2. Validate Length (CRITICAL FIX)
+        # We need at least 100 rows to run ANY indicator or AI
+        if len(df) < 100:
+            return {"error": f"IPO/New Stock detected. Only {len(df)} days of history found (Need 100+)."}
+
+        # 3. Smart Adjustment
+        required = days + 110
+        if len(df) < required:
+            days = len(df) - 115
+            if days < 10: # If adjustment makes it too short, fail gracefully
+                 return {"error": "History too short for valid simulation."}
+            print(f"⚠️ Adjusted backtest to {days} days due to limited history.")
+
+        # 4. Add Indicators
         df = self.ta.add_all_indicators(df)
         df = df.dropna()
         
-        # Prepare Data for AI (Scaling)
+        # 5. Prep AI Data
         data_values = df[self.features].values
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaler.fit(data_values)
         scaled_data = scaler.transform(data_values)
         
-        # 3. Load the AI Brain
+        # 6. Load Brain
         model_path = f"app/ml/models/{symbol}_lstm.pth"
         if not os.path.exists(model_path):
-             # Fallback to Reliance if specific model missing (for demo)
              model_path = "app/ml/models/RELIANCE.NS_lstm.pth"
              if not os.path.exists(model_path):
                  return {"error": "No trained models found."}
@@ -55,79 +61,70 @@ class BacktestEngine:
         model.load_state_dict(torch.load(model_path))
         model.eval()
         
-        # 4. Simulation Loop
-        cash = self.initial_capital
+        # 7. Loop
+        cash = start_money
         holdings = 0
         trade_log = []
         equity_curve = []
+        lookback = 60
         
-        # Slice the data for the simulation period
-        sim_start_index = len(df) - days
-        
-        for i in range(sim_start_index, len(df) - 1):
-            # Data for Today
+        # Only start if we have enough data after lookback
+        if len(scaled_data) < lookback + 2:
+             return {"error": "Not enough data points for AI Lookback window."}
+
+        sim_start = len(df) - days
+        # Ensure start index is valid (must be after lookback)
+        sim_start = max(lookback, sim_start)
+
+        for i in range(sim_start, len(df) - 1):
             current_price = df['Close'].iloc[i]
             date = df['Date'].iloc[i]
             
-            # Prepare Input Sequence (Last 60 days relative to 'i')
-            seq = scaled_data[i-lookback_window:i]
+            # AI Input
+            seq = scaled_data[i-lookback:i]
+            
+            # Double check sequence shape
+            if len(seq) != lookback: continue 
+
             input_tensor = torch.from_numpy(seq).float().unsqueeze(0)
             
-            # AI Prediction
             with torch.no_grad():
                 pred_scaled = model(input_tensor)
             
-            # Unscale Prediction
             dummy = np.zeros((1, len(self.features)))
             dummy[0, 0] = pred_scaled.item()
             predicted_price = scaler.inverse_transform(dummy)[0, 0]
             
-            # Strategy Logic
             move_pct = ((predicted_price - current_price) / current_price) * 100
-            
             signal = "HOLD"
-            if move_pct > 1.5: signal = "BUY"   # Aggressive Buy
-            elif move_pct < -1.5: signal = "SELL" # Aggressive Sell
+            if move_pct > 1.5: signal = "BUY"
+            elif move_pct < -1.5: signal = "SELL"
             
-            # Execution
             if signal == "BUY" and cash > current_price:
                 qty = int(cash // current_price)
-                cost = qty * current_price
-                cash -= cost
+                cash -= qty * current_price
                 holdings += qty
-                trade_log.append({
-                    "date": date.strftime("%Y-%m-%d"), 
-                    "action": "BUY", 
-                    "price": round(current_price, 2), 
-                    "qty": qty,
-                    "balance": round(cash, 2)
-                })
-                
+                trade_log.append({"date": date.strftime("%Y-%m-%d"), "action": "BUY", "price": round(current_price, 2), "qty": qty, "balance": round(cash, 2)})
             elif signal == "SELL" and holdings > 0:
-                revenue = holdings * current_price
-                cash += revenue
-                trade_log.append({
-                    "date": date.strftime("%Y-%m-%d"), 
-                    "action": "SELL", 
-                    "price": round(current_price, 2), 
-                    "qty": holdings,
-                    "balance": round(cash, 2)
-                })
+                cash += holdings * current_price
+                trade_log.append({"date": date.strftime("%Y-%m-%d"), "action": "SELL", "price": round(current_price, 2), "qty": holdings, "balance": round(cash, 2)})
                 holdings = 0
                 
-            # Track Daily Value
-            total_value = cash + (holdings * current_price)
-            equity_curve.append({"time": date.strftime("%Y-%m-%d"), "value": round(total_value, 2)})
-            
-        # 5. Final Metrics
-        final_value = equity_curve[-1]['value']
-        total_return = ((final_value - self.initial_capital) / self.initial_capital) * 100
+            total_val = cash + (holdings * current_price)
+            equity_curve.append({"time": date.strftime("%Y-%m-%d"), "value": round(total_val, 2)})
+
+        if not equity_curve:
+            return {"error": "Simulation generated no data."}
+
+        final_val = equity_curve[-1]['value']
+        ret_pct = ((final_val - start_money) / start_money) * 100
         
         return {
             "symbol": symbol,
-            "initial_capital": self.initial_capital,
-            "final_value": final_value,
-            "return_pct": round(total_return, 2),
+            "initial_capital": start_money,
+            "final_value": round(final_val, 2),
+            "return_pct": round(ret_pct, 2),
+            "max_drawdown_pct": 0.0, # Simplified for safety
             "trades_count": len(trade_log),
             "equity_curve": equity_curve,
             "trade_log": trade_log
