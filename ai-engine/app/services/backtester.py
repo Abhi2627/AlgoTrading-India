@@ -9,6 +9,7 @@ from datetime import datetime
 from app.services.data_loader import MarketDataLoader
 from app.processing.indicators import TechnicalAnalyzer
 from app.ml.model import AladdinPricePredictor 
+from app.ml.transformer_model import TimeSeriesTransformer
 
 class BacktestEngine:
     def __init__(self, initial_capital=1000):
@@ -51,14 +52,12 @@ class BacktestEngine:
         scaled_data = scaler.transform(data_values)
         
         # 6. Load Brain
-        model_path = f"app/ml/models/{symbol}_lstm.pth"
+        model_path = "app/ml/models/universal_transformer.pth"
         if not os.path.exists(model_path):
-             model_path = "app/ml/models/RELIANCE.NS_lstm.pth"
-             if not os.path.exists(model_path):
-                 return {"error": "No trained models found."}
+             return {"error": "Universal Model not found."}
 
-        model = AladdinPricePredictor(input_dim=len(self.features))
-        model.load_state_dict(torch.load(model_path))
+        model = TimeSeriesTransformer(input_dim=len(self.features), d_model=128, nhead=8, num_layers=4)
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         model.eval()
         
         # 7. Loop

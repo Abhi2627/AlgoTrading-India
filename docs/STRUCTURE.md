@@ -1,50 +1,45 @@
-This file is now redundant because the README covers the structure well, but if you want to keep it for technical depth, here is the updated version matching the Microservices architecture.
-
 ```markdown
-# Architecture & Design Documentation
+# Architecture Documentation
 
-## System Architecture
-Aladdin AI uses a decoupled **Microservices Architecture**. The heavy lifting (AI/ML) is handled by Python, while the user experience is handled by Next.js. They communicate via REST API and share a cloud database.
+## System Design
+Aladdin AI follows a modern **Microservices Architecture**, separating the "Brain" (Computation) from the "Face" (Presentation).
 
-### 1. The AI Engine (Python FastAPI)
-* **Responsibility:** The core logic center. It does not store user sessions but handles all data processing.
-* **Data Pipeline:**
-    * **Ingestion:** Fetches raw OHLCV data via `yfinance` (Stocks) and `ccxt` (Crypto).
-    * **Processing:** `pandas-ta` calculates 20+ technical indicators (RSI, Bollinger, MACD).
-    * **Inference:**
-        * **LSTM:** Predicts the next day's closing price based on the last 60 days.
-        * **RAG:** Scrapes Google News, vectorizes headlines using `all-MiniLM-L6-v2`, and calculates a Sentiment Score (-1 to +1).
-* **Storage:** Saves prediction logs and trade execution orders to MongoDB.
+### 1. AI Engine (Python FastAPI)
+* **Role:** The decision-making core. It handles all data ingestion, processing, and storage.
+* **Key Components:**
+    * `transformer_model.py`: The Universal Time-Series Transformer. It uses Multi-Head Attention to detect complex price patterns across different asset classes.
+    * `rag_engine.py`: Converts news headlines into 384-dimensional vectors to perform semantic sentiment analysis.
+    * `backtester.py`: A simulation engine that runs the AI on historical data to calculate ROI and Drawdown.
+    * `report_engine.py`: Automates daily market analysis and accuracy tracking.
 
 ### 2. The Database (MongoDB Atlas)
-* **Role:** The "Source of Truth" for persistence.
+* **Role:** Central persistent storage.
 * **Collections:**
-    * `users`: Stores wallet balance (`₹1000`), portfolio holdings, and monthly refill timestamps.
-    * `trades`: Immutable ledger of every buy/sell transaction.
-    * `predictions`: Historical log of AI signals (used for backtesting accuracy later).
+    * `users`: Stores wallet balance, holdings, and portfolio history.
+    * `trades`: Immutable ledger of all executed buy/sell orders.
+    * `reports`: Daily Pre-market and Post-market AI analysis logs.
 
 ### 3. The Frontend (Next.js 14)
-* **Responsibility:** Visualization and Interaction.
-* **Key Components:**
-    * `StockDashboard.tsx`: The main trading terminal. Uses `lightweight-charts` for rendering financial data.
-    * `GlobalSearch.tsx`: Smart autocomplete for assets.
-    * `HomeView.tsx`: Displays wallet balance and trade history.
-* **Routing:** Uses Dynamic Routing (`/asset/[symbol]`) to generate pages for any asset on the fly.
+* **Role:** Interactive user interface.
+* **Key Features:**
+    * **Dynamic Routing:** `/asset/[symbol]` pages are generated on the fly for any requested stock.
+    * **Global Search:** Instant search across Stocks, Crypto, and Forex using a unified index.
+    * **Real-time Charts:** Renders interactive candlestick charts using `lightweight-charts`.
 
-## Data Flow: "The Trading Loop"
+## Data Flow Diagram
 
-1.  **User Search:** User types "BTC" → Frontend routes to `/asset/BTC-USD`.
-2.  **Analysis Request:** Frontend calls `GET /predict/BTC-USD`.
-3.  **AI Execution:**
-    * Backend checks if a trained model exists.
-    * Fetches live price.
-    * Runs LSTM prediction.
-    * Scrapes news & runs Vector Sentiment analysis.
-    * Returns JSON (Price, Signal, Confidence, News).
-4.  **Decision:** User clicks "BUY".
-5.  **Execution:**
-    * Frontend calls `POST /trade`.
-    * Backend verifies funds in MongoDB `users` collection.
-    * Backend updates Balance & Portfolio.
-    * Backend logs transaction to `trades`.
-6.  **Feedback:** Frontend updates the Wallet UI instantly.
+1.  **User Input:** User searches for "Tata Motors".
+2.  **Frontend:** Navigates to `/asset/TATAMOTORS.NS`.
+3.  **API Call:** Frontend requests `GET /predict/TATAMOTORS.NS` from Python Engine.
+4.  **AI Processing:**
+    * Checks for cached data.
+    * Fetches live price & news.
+    * Runs Transformer Model (Inference).
+    * Runs RAG Model (Sentiment).
+    * Calculates Confidence Score.
+5.  **Response:** Returns detailed JSON (Price, Signal, News, Chart Data).
+6.  **User Action:** User clicks "BUY".
+7.  **Transaction:**
+    * Backend verifies funds in MongoDB.
+    * Updates Wallet Balance.
+    * Logs Trade.

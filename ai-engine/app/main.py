@@ -7,25 +7,44 @@ from datetime import datetime
 import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
-from app.services.report_engine import ReportEngine
-from app.services.backtester import BacktestEngine
 import os
 
 # Custom Modules
 from app.services.data_loader import MarketDataLoader
 from app.processing.indicators import TechnicalAnalyzer
-from app.ml.model import AladdinPricePredictor
+# CHANGE: Import the Transformer Model
+from app.ml.transformer_model import TimeSeriesTransformer
 from app.services.news_agent import NewsAgent
 from app.services.mongo import db 
 
-# --- GLOBAL INSTANCES ---
-news_agent = NewsAgent() 
+news_agent = NewsAgent()
+# GLOBAL MODEL INSTANCE (Load once, use everywhere)
+universal_model = None 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Aladdin Engine Starting...")
     db.connect()
-    print("🧠 RAG Engine is ready.")
+    
+    # LOAD UNIVERSAL BRAIN
+    global universal_model
+    model_path = "app/ml/models/universal_transformer.pth"
+    
+    try:
+        # Initialize with the EXACT same params used in Colab training
+        universal_model = TimeSeriesTransformer(
+            input_dim=5, 
+            d_model=128, 
+            nhead=8, 
+            num_layers=4
+        )
+        universal_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        universal_model.eval()
+        print(f"🧠 Universal Brain Loaded successfully from {model_path}")
+    except Exception as e:
+        print(f"⚠️ Failed to load Universal Model: {e}")
+        print("Using dummy predictions until fixed.")
+        
     yield
     await db.close()
     print("🛑 Aladdin Engine Stopped.")
@@ -39,14 +58,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- MODELS ---
+# ... (Keep PredictionResponse, TradeRequest models SAME as before) ...
 class PredictionResponse(BaseModel):
     symbol: str
     current_price: float
     predicted_price: float
     expected_move_pct: float
     signal: str
-    confidence: float  # Now a real number!
+    confidence: float
     sentiment_score: float
     recent_news: List[Dict[str, str]]
     chart_data: List[Dict[str, Any]] 
@@ -59,45 +78,18 @@ class TradeRequest(BaseModel):
     price: float
     quantity: int
 
-# --- HELPER: CONFIDENCE CALCULATOR ---
 def calculate_confidence(signal: str, sentiment: float, rsi: float, macd_hist: float) -> float:
-    """
-    Calculates a confidence score (0-100%) based on the convergence of:
-    1. AI Signal
-    2. News Sentiment
-    3. Technical Indicators (RSI, MACD)
-    """
-    if signal == "HOLD":
-        return 50.0  # Neutral confidence
-
-    score = 40.0  # Base confidence for the LSTM model itself
-
-    # 1. Sentiment Alignment (Max +30%)
-    if signal == "BUY" and sentiment > 0.15:
-        score += 30
-    elif signal == "SELL" and sentiment < -0.15:
-        score += 30
-    elif (signal == "BUY" and sentiment < -0.2) or (signal == "SELL" and sentiment > 0.2):
-        score -= 20  # News contradicts price
-
-    # 2. RSI Confirmation (Max +15%)
-    # RSI < 40 supports BUY (Oversold)
-    # RSI > 60 supports SELL (Overbought)
-    if signal == "BUY" and rsi < 45:
-        score += 15
-    elif signal == "SELL" and rsi > 55:
-        score += 15
-
-    # 3. MACD Momentum (Max +15%)
-    # Positive Histogram supports BUY, Negative supports SELL
-    if signal == "BUY" and macd_hist > 0:
-        score += 15
-    elif signal == "SELL" and macd_hist < 0:
-        score += 15
-
-    return min(98.5, max(10.0, score)) # Cap between 10% and 98.5%
-
-# --- ENDPOINTS ---
+    # ... (Keep your confidence logic SAME as before) ...
+    if signal == "HOLD": return 50.0
+    score = 40.0
+    if signal == "BUY" and sentiment > 0.15: score += 30
+    elif signal == "SELL" and sentiment < -0.15: score += 30
+    elif (signal == "BUY" and sentiment < -0.2) or (signal == "SELL" and sentiment > 0.2): score -= 20
+    if signal == "BUY" and rsi < 45: score += 15
+    elif signal == "SELL" and rsi > 55: score += 15
+    if signal == "BUY" and macd_hist > 0: score += 15
+    elif signal == "SELL" and macd_hist < 0: score += 15
+    return min(98.5, max(10.0, score))
 
 @app.get("/")
 def health_check():
@@ -106,82 +98,68 @@ def health_check():
 @app.get("/predict/{symbol}", response_model=PredictionResponse)
 async def predict_stock(symbol: str):
     try:
-        # 1. Fetch Data
         loader = MarketDataLoader()
-        df = loader.get_stock_data(symbol, period="5y")
+        df = loader.get_stock_data(symbol, period="2y")
         if df is None or df.empty:
             raise HTTPException(status_code=404, detail="Stock data not found")
             
-        # 2. Indicators
         ta = TechnicalAnalyzer()
         df = ta.add_all_indicators(df)
-        
-        # 3. AI Data Prep
+        df = df.dropna()
+
+        # PREPARE DATA FOR UNIVERSAL BRAIN
         features = ['Close', 'RSI', 'SMA_50', 'SMA_200', 'OBV']
-        data = df[features].values
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        scaler.fit(data)
+        data_values = df[features].values
         
-        last_60_days = data[-60:]
+        # Normalize (CRITICAL for Universal Model)
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaler.fit(data_values)
+        
+        last_60_days = data_values[-60:]
         scaled_input = scaler.transform(last_60_days)
         input_tensor = torch.from_numpy(scaled_input).float().unsqueeze(0)
         
-        # 4. Load Brain
-        model_path = f"app/ml/models/{symbol}_lstm.pth"
-        if not os.path.exists(model_path):
-             if os.path.exists("app/ml/models/RELIANCE.NS_lstm.pth"):
-                 print(f"⚠️ Warning: Using fallback model for {symbol}")
-                 model_path = "app/ml/models/RELIANCE.NS_lstm.pth"
-             else:
-                 raise HTTPException(status_code=400, detail="No models trained.")
-
-        model = AladdinPricePredictor(input_dim=len(features))
-        model.load_state_dict(torch.load(model_path))
-        model.eval()
+        # PREDICT USING GLOBAL MODEL
+        if universal_model:
+            with torch.no_grad():
+                pred_scaled = universal_model(input_tensor)
+            
+            # Unscale
+            dummy = np.zeros((1, len(features)))
+            dummy[0, 0] = pred_scaled.item()
+            prediction_actual = scaler.inverse_transform(dummy)[0, 0]
+        else:
+            # Fallback if model failed to load
+            prediction_actual = df['Close'].iloc[-1]
+            
+        current_price = df['Close'].iloc[-1]
+        move_pct = ((prediction_actual - current_price) / current_price) * 100
         
-        # 5. Get News & Sentiment
+        # Logic
         search_term = f"{symbol} stock" if "USD" not in symbol else f"{symbol} crypto"
         news = news_agent.get_news(search_term) 
         sentiment_score = news_agent.analyze_sentiment(news)
-
-        # 6. Run Prediction
-        with torch.no_grad():
-            prediction_scaled = model(input_tensor)
-            
-        dummy_row = np.zeros((1, len(features)))
-        dummy_row[0, 0] = prediction_scaled.item()
-        prediction_actual = scaler.inverse_transform(dummy_row)[0, 0]
-        
-        # 7. Logic & Signal
-        current_price = df['Close'].iloc[-1]
-        
-        # Get Technical Values for Confidence Calculation
-        current_rsi = df['RSI'].iloc[-1]
-        # MACD Histogram is usually the difference between MACD and Signal
-        # Our indicator adds MACD_12_26_9 and MACDs_12_26_9 (Signal)
-        # We need to check exact column names from pandas-ta, usually 'MACDh_12_26_9' is histogram
-        macd_hist_col = [c for c in df.columns if 'MACDh' in c]
-        current_macd_hist = df[macd_hist_col[0]].iloc[-1] if macd_hist_col else 0
-
-        move_pct = ((prediction_actual - current_price) / current_price) * 100
         
         final_signal = "HOLD"
         if move_pct > 1.0: final_signal = "BUY"
         elif move_pct < -1.0: final_signal = "SELL"
         
-        # Risk Management Override
         if final_signal == "BUY" and sentiment_score < -0.2:
             final_signal = "HOLD (Risk Alert ⚠️)"
 
-        # 8. CALCULATE CONFIDENCE (The Fix)
+        # Confidence
+        current_rsi = df['RSI'].iloc[-1]
+        macd_hist_col = [c for c in df.columns if 'MACDh' in c]
+        current_macd_hist = df[macd_hist_col[0]].iloc[-1] if macd_hist_col else 0
+        
         confidence_score = calculate_confidence(
-            signal=final_signal.split()[0], # Remove "(Risk Alert)" text
+            signal=final_signal.split()[0], 
             sentiment=sentiment_score,
             rsi=current_rsi,
             macd_hist=current_macd_hist
         )
 
-        # 9. Chart Data
+        # Chart Data
         history_df = df.tail(90).copy()
         chart_data = []
         for index, row in history_df.iterrows():
@@ -199,11 +177,9 @@ async def predict_stock(symbol: str):
                 "predicted": float(prediction_actual),
                 "signal": final_signal,
                 "confidence": float(confidence_score),
-                "sentiment": float(sentiment_score),
                 "timestamp": datetime.utcnow()
             })
-        except:
-            pass
+        except: pass
 
         return {
             "symbol": symbol,
@@ -211,7 +187,7 @@ async def predict_stock(symbol: str):
             "predicted_price": round(prediction_actual, 2),
             "expected_move_pct": round(move_pct, 2),
             "signal": final_signal,
-            "confidence": round(confidence_score, 1), # Send real confidence!
+            "confidence": round(confidence_score, 1),
             "sentiment_score": sentiment_score,
             "recent_news": news[:3],
             "chart_data": chart_data,
@@ -222,9 +198,8 @@ async def predict_stock(symbol: str):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ... (Keep Wallet & Trade Endpoints exactly as they were in the previous step) ...
-# Important: Paste the Wallet/Trade code from the previous successful step below here.
-# I will include them for completeness to avoid copy-paste errors.
+# ... (Keep your existing Wallet, Trades, Backtest endpoints here. DO NOT DELETE THEM) ...
+# Just paste the Wallet/Trade/Backtest endpoints from your previous main.py below this line.
 
 @app.get("/wallet")
 async def get_wallet():
@@ -307,42 +282,43 @@ async def reset_account():
     )
     return {"status": "success", "message": "Account reset to ₹1000"}
 
-#Report Endpoints
+# --- REPORT SYSTEM ---
+
 @app.post("/reports/generate/{type}")
-async def generate_report(type: str):
+async def generate_report_api(type: str):
     """
-    Manually trigger a report generation.
-    Type: 'pre' (Morning) or 'post' (Evening)
+    Triggers generation of a Daily Report.
+    type: 'pre' (Morning) or 'post' (Evening)
     """
     engine = ReportEngine()
     
-    # We use a small watchlist for the demo
+    # Define your "Watchlist" for the daily report
     watchlist = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "BTC-USD"]
     
     if type == "pre":
         report = await engine.generate_pre_market_report(watchlist)
-        return {"status": "success", "report": str(report['_id'])}
+        return {"status": "success", "summary": report['summary']}
     elif type == "post":
         report = await engine.generate_post_market_report()
-        return {"status": "success", "data": report}
+        return {"status": "success", "summary": report.get('summary', 'Report Generated')}
     else:
-        raise HTTPException(status_code=400, detail="Invalid report type")
+        raise HTTPException(status_code=400, detail="Invalid type. Use 'pre' or 'post'.")
 
 @app.get("/reports/latest")
 async def get_latest_reports():
     """
-    Fetch the latest Pre and Post market reports for the Dashboard.
+    Fetches the most recent reports for the dashboard.
     """
-    # Get latest Pre-market
     pre = await db.db.reports.find_one({"type": "PRE_MARKET"}, sort=[("timestamp", -1)])
-    # Get latest Post-market
     post = await db.db.reports.find_one({"type": "POST_MARKET"}, sort=[("timestamp", -1)])
     
-    # Convert ObjectIDs to string for JSON serialization
-    if pre: pre["_id"] = str(pre["_id"])
-    if post: post["_id"] = str(post["_id"])
-    
-    return {"pre_market": pre, "post_market": post}
+    # Helper to convert ObjectId to string
+    def clean_id(doc):
+        if doc: 
+            doc["_id"] = str(doc["_id"])
+        return doc
+
+    return {"pre_market": clean_id(pre), "post_market": clean_id(post)}
 
 # Backtest Endpoint
 @app.get("/backtest/{symbol}")
