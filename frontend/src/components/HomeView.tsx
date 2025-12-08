@@ -1,25 +1,55 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Wallet, History, ArrowUpRight, TrendingUp } from "lucide-react";
+import { Wallet, History, TrendingUp, Moon, Sun, ArrowRight, RefreshCcw } from "lucide-react";
 import { fetchWalletBalance, fetchTradeHistory } from "@/lib/api";
+
+// Helper to fetch reports
+async function fetchReport(){
+  const res = await fetch("http://127.0.0.1:8000/reports/latest", { cache: 'no-store'})
+  return await res.json();
+}
 
 export default function HomeView() {
   const [balance, setBalance] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // State for the Smart Briefing
+  const [briefingType, setBriefingType] = useState<"MORNING" | "EVENING" | "NONE">("NONE");
+  const [activeReport, setActiveReport] = useState<any>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [walletRes, tradesRes] = await Promise.all([
+        const [walletRes, tradesRes, reportRes] = await Promise.all([
           fetchWalletBalance(),
-          fetchTradeHistory()
+          fetchTradeHistory(),
+          fetchReport()
         ]);
+        
         setBalance(walletRes.balance);
         setHistory(tradesRes);
+        
+        // --- SMART LOGIC: Which report is newer? ---
+        const pre = reportRes.pre_market;
+        const post = reportRes.post_market;
+        
+        const preTime = pre ? new Date(pre.timestamp).getTime() : 0;
+        const postTime = post ? new Date(post.timestamp).getTime() : 0;
+        
+        if (preTime === 0 && postTime === 0) {
+            setBriefingType("NONE");
+        } else if (preTime > postTime) {
+            setBriefingType("MORNING");
+            setActiveReport(pre);
+        } else {
+            setBriefingType("EVENING");
+            setActiveReport(post);
+        }
+
       } catch (e) {
-        console.error("Failed to load home data");
+        console.error("Failed to load home data", e);
       } finally {
         setLoading(false);
       }
@@ -28,9 +58,9 @@ export default function HomeView() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* Portfolio Summary Card */}
+      {/* 1. Portfolio Summary Card */}
       <div className="bg-linear-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/30 p-8 rounded-3xl relative overflow-hidden shadow-2xl">
         <div className="relative z-10">
           <h2 className="text-blue-300 font-medium mb-2 flex items-center gap-2 uppercase tracking-wide text-xs">
@@ -49,11 +79,118 @@ export default function HomeView() {
             </div>
           </div>
         </div>
-        {/* Background Decoration */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
       </div>
 
-      {/* Transaction History Table */}
+      {/* 2. THE SMART BRIEFING CARD (Dynamic) */}
+      <div className="w-full">
+        {briefingType === "MORNING" && activeReport && (
+          // --- MORNING LAYOUT ---
+          <div className="bg-[#1e293b] border border-yellow-500/20 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+             
+             <div className="flex justify-between items-start mb-6 relative z-10">
+               <div>
+                 <h3 className="text-2xl font-black text-white flex items-center gap-2">
+                   <Sun size={24} className="text-yellow-400 fill-yellow-400"/> Morning Outlook
+                 </h3>
+                 <p className="text-slate-400 text-sm mt-1">AI Market Predictions for {activeReport.date}</p>
+               </div>
+               <span className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
+                 Market Open
+               </span>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+               {activeReport.entries.slice(0, 4).map((entry: any, i: number) => (
+                 <div key={i} className="bg-[#0d1117]/60 border border-slate-700/50 p-4 rounded-xl hover:border-yellow-500/30 transition-all flex flex-col justify-between">
+                   <div className="flex justify-between items-center mb-2">
+                     <span className="font-bold text-lg text-white">{entry.symbol}</span>
+                     <span className={`text-xs px-2 py-1 rounded font-black uppercase ${
+                       entry.signal === 'BUY' ? 'bg-green-500/20 text-green-400' : 
+                       entry.signal === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'
+                     }`}>
+                       {entry.signal}
+                     </span>
+                   </div>
+                   <div className="flex justify-between items-end">
+                     <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold">Target Price</p>
+                        <p className="text-sm font-mono text-slate-300">₹{entry.target}</p>
+                     </div>
+                     <p className="text-xs text-slate-500 max-w-[60%] text-right leading-tight">{entry.reason}</p>
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
+
+        {briefingType === "EVENING" && activeReport && (
+          // --- EVENING LAYOUT ---
+          <div className="bg-[#1e293b] border border-purple-500/20 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+             
+             <div className="flex justify-between items-start mb-6 relative z-10">
+               <div>
+                 <h3 className="text-2xl font-black text-white flex items-center gap-2">
+                   <Moon size={24} className="text-purple-400 fill-purple-400"/> Evening Review
+                 </h3>
+                 <p className="text-slate-400 text-sm mt-1">Performance Analysis for {activeReport.date}</p>
+               </div>
+               <div className="text-right">
+                  <span className={`block text-2xl font-black ${
+                      activeReport.accuracy_score > 60 ? 'text-green-400' : 'text-orange-400'
+                  }`}>
+                    {activeReport.accuracy_score}%
+                  </span>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Accuracy Score</span>
+               </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+               {activeReport.details.slice(0, 4).map((entry: any, i: number) => (
+                 <div key={i} className={`border p-4 rounded-xl flex justify-between items-center transition-all ${
+                    entry.correct 
+                    ? 'bg-green-900/10 border-green-500/20' 
+                    : 'bg-red-900/10 border-red-500/20'
+                 }`}>
+                   <div>
+                     <span className="font-bold text-white text-lg block">{entry.symbol}</span>
+                     <span className="text-xs text-slate-400">
+                       AI said <strong className="text-slate-300">{entry.prediction}</strong>
+                     </span>
+                   </div>
+                   <div className="text-right">
+                     <span className={`block text-lg font-bold ${entry.actual_move > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                       {entry.actual_move > 0 ? '+' : ''}{entry.actual_move}%
+                     </span>
+                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                        entry.correct ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                     }`}>
+                       {entry.correct ? "Correct" : "Missed"}
+                     </span>
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
+
+        {briefingType === "NONE" && !loading && (
+           <div className="bg-[#1e293b] border border-dashed border-slate-700 p-8 rounded-2xl flex flex-col items-center justify-center text-center">
+              <div className="bg-slate-800 p-4 rounded-full mb-4">
+                 <RefreshCcw size={24} className="text-slate-400"/>
+              </div>
+              <h3 className="text-lg font-bold text-slate-300">No Briefing Available</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-md">
+                 Aladdin hasn't generated a report for today yet. Check back after market hours.
+              </p>
+           </div>
+        )}
+      </div>
+
+      {/* 3. Transaction History */}
       <div>
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
           <History size={20} className="text-gray-400"/> Order History

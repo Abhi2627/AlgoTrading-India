@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Union, Any
 from contextlib import asynccontextmanager
 from datetime import datetime
+from app.services.backtester import BacktestEngine
+from app.services.report_engine import ReportEngine
 import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -79,17 +81,21 @@ class TradeRequest(BaseModel):
     quantity: int
 
 def calculate_confidence(signal: str, sentiment: float, rsi: float, macd_hist: float) -> float:
-    # ... (Keep your confidence logic SAME as before) ...
-    if signal == "HOLD": return 50.0
-    score = 40.0
-    if signal == "BUY" and sentiment > 0.15: score += 30
-    elif signal == "SELL" and sentiment < -0.15: score += 30
-    elif (signal == "BUY" and sentiment < -0.2) or (signal == "SELL" and sentiment > 0.2): score -= 20
-    if signal == "BUY" and rsi < 45: score += 15
-    elif signal == "SELL" and rsi > 55: score += 15
-    if signal == "BUY" and macd_hist > 0: score += 15
-    elif signal == "SELL" and macd_hist < 0: score += 15
-    return min(98.5, max(10.0, score))
+    score = 50.0 # Start at 50% instead of 40%
+
+    # 1. Sentiment (Lower threshold to 0.1 from 0.15)
+    if signal == "BUY" and sentiment > 0.1: score += 20
+    elif signal == "SELL" and sentiment < -0.1: score += 20
+    
+    # 2. RSI (Widen range)
+    if signal == "BUY" and rsi < 50: score += 10 # Any RSI below 50 supports buy
+    elif signal == "SELL" and rsi > 50: score += 10 # Any RSI above 50 supports sell
+
+    # 3. MACD (Keep same)
+    if signal == "BUY" and macd_hist > 0: score += 10
+    elif signal == "SELL" and macd_hist < 0: score += 10
+    
+    return min(99.0, max(10.0, score))
 
 @app.get("/")
 def health_check():
@@ -141,8 +147,8 @@ async def predict_stock(symbol: str):
         sentiment_score = news_agent.analyze_sentiment(news)
         
         final_signal = "HOLD"
-        if move_pct > 1.0: final_signal = "BUY"
-        elif move_pct < -1.0: final_signal = "SELL"
+        if move_pct > 0.5: final_signal = "BUY"
+        elif move_pct < -0.5: final_signal = "SELL"
         
         if final_signal == "BUY" and sentiment_score < -0.2:
             final_signal = "HOLD (Risk Alert ⚠️)"

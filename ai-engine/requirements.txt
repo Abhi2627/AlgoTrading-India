@@ -6,8 +6,6 @@ ccxt==4.1.78
 beautifulsoup4==4.12.2
 pandas==2.1.3
 numpy==1.26.2
-# Installing pandas-ta directly from source to fix dependency errors
-git+https://github.com/twopirllc/pandas-ta.git@development
 scikit-learn==1.3.2
 torch==2.1.1
 sentence-transformers==2.2.2

@@ -36,7 +36,7 @@ class BacktestEngine:
         # 3. Smart Adjustment
         required = days + 110
         if len(df) < required:
-            days = len(df) - 115
+            days = int(len(df) - 115)
             if days < 10: # If adjustment makes it too short, fail gracefully
                  return {"error": "History too short for valid simulation."}
             print(f"⚠️ Adjusted backtest to {days} days due to limited history.")
@@ -71,7 +71,7 @@ class BacktestEngine:
         if len(scaled_data) < lookback + 2:
              return {"error": "Not enough data points for AI Lookback window."}
 
-        sim_start = len(df) - days
+        sim_start = int(len(df) - days)
         # Ensure start index is valid (must be after lookback)
         sim_start = max(lookback, sim_start)
 

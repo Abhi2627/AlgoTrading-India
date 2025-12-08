@@ -1,75 +1,68 @@
 import pandas as pd
-import pandas_ta_classic as ta
+import numpy as np
 
 class TechnicalAnalyzer:
     """
-    The 'Analytical Brain'. 
-    Takes raw price data and adds mathematical indicators.
+    Zero-Dependency Technical Analysis.
+    Calculates indicators using pure Pandas/Numpy to avoid version conflicts.
     """
     
     def add_all_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Adds RSI, MACD, Bollinger Bands, and SMA to the dataframe.
-        """
-        if df is None or df.empty:
-            return df
-            
-        # Ensure we are working on a copy to avoid warnings
+        if df is None or df.empty: return df
         df = df.copy()
 
-        # 1. RSI (Relative Strength Index)
-        df['RSI'] = df.ta.rsi(length=14)
+        # 1. SMA (Simple Moving Average)
+        df['SMA_50'] = df['Close'].rolling(window=50).mean()
+        df['SMA_200'] = df['Close'].rolling(window=200).mean()
 
-        # 2. MACD
-        macd = df.ta.macd(fast=12, slow=26, signal=9)
-        if macd is not None:
-            df = pd.concat([df, macd], axis=1)
-
-        # 3. Bollinger Bands
-        bbands = df.ta.bbands(length=20, std=2.0)
-        if bbands is not None:
-            df = pd.concat([df, bbands], axis=1)
-
-        # 4. Simple Moving Averages (SMA)
-        df['SMA_50'] = df.ta.sma(length=50)
-        df['SMA_200'] = df.ta.sma(length=200)
-
-        # 5. Volume Trends
-        df['OBV'] = df.ta.obv()
-
-        # Clean up: Drop rows with NaN values (due to calculations)
-        df.dropna(inplace=True)
+        # 2. RSI (Relative Strength Index - 14)
+        delta = df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['RSI'] = 100 - (100 / (1 + rs))
         
+        # Fill NaN RSI (start of data) with 50 (Neutral) to prevent crashes
+        df['RSI'] = df['RSI'].fillna(50)
+
+        # 3. MACD (12, 26, 9)
+        # EMA = Exponential Moving Average
+        k_12 = df['Close'].ewm(span=12, adjust=False).mean()
+        k_26 = df['Close'].ewm(span=26, adjust=False).mean()
+        df['MACD'] = k_12 - k_26
+        df['MACD_signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+        
+        # Histogram (The important part for strategy)
+        # Naming it specific to match old logic if needed, or simple
+        df['MACDh_12_26_9'] = df['MACD'] - df['MACD_signal']
+
+        # 4. Bollinger Bands (20, 2)
+        sma_20 = df['Close'].rolling(window=20).mean()
+        std_20 = df['Close'].rolling(window=20).std()
+        df['BBL_20_2.0'] = sma_20 - (std_20 * 2) # Lower
+        df['BBU_20_2.0'] = sma_20 + (std_20 * 2) # Upper
+
+        # 5. OBV (On Balance Volume)
+        # If Close > PrevClose, add Volume. Else subtract.
+        df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+
+        # Cleanup: Drop rows that need calculation window (first 50 days) 
+        # unless it makes data too short
+        if len(df) > 60:
+            df = df.dropna()
+        else:
+            df = df.fillna(method='bfill') # Backfill if data is short
+
         return df
 
-# --- Quick Test Block ---
 if __name__ == "__main__":
-    import numpy as np 
-    
-    print("🧪 Testing Technical Analysis Layer...")
-    
-    # FIX: Generating 300 days of data so SMA_200 can be calculated
-    days = 300
-    
+    # Quick Test
+    print("🧪 Testing Manual Indicators...")
     data = {
-        'Close': np.random.normal(100, 10, days).tolist(),
-        'Volume': np.random.randint(1000, 5000, days).tolist(),
-        'High': np.random.normal(105, 10, days).tolist(),
-        'Low': np.random.normal(95, 10, days).tolist(),
-        'Open': np.random.normal(100, 10, days).tolist(),
+        'Close': np.random.normal(100, 10, 200),
+        'Volume': np.random.randint(100, 1000, 200)
     }
-    
-    df_test = pd.DataFrame(data)
-    
-    analyzer = TechnicalAnalyzer()
-    
-    # Add indicators
-    enriched_df = analyzer.add_all_indicators(df_test)
-    
-    if not enriched_df.empty and 'SMA_200' in enriched_df.columns:
-        print(f"✅ Success! Calculated Indicators for {len(enriched_df)} rows.")
-        print(f"   Latest RSI: {enriched_df['RSI'].iloc[-1]:.2f}")
-        print(f"   Latest SMA_200: {enriched_df['SMA_200'].iloc[-1]:.2f}")
-        print(f"   Columns: {list(enriched_df.columns)}")
-    else:
-        print("❌ Error: Indicators were not calculated.")
+    df = pd.DataFrame(data)
+    ta = TechnicalAnalyzer()
+    df = ta.add_all_indicators(df)
+    print(f"✅ Indicators Calculated. Columns: {list(df.columns)}")
