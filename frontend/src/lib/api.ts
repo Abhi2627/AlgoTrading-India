@@ -54,20 +54,23 @@ export async function fetchWalletBalance() {
 }
 
 // 4. Execute Trade (Buy/Sell)
-export async function placeTrade(symbol: string, action: "BUY" | "SELL", price: number, quantity: number) {
+export async function executeTrade(tradeData: any) {
   const res = await fetch(`${API_BASE_URL}/trade`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbol, action, price, quantity }) // Send actual quantity
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tradeData),
   });
   
+  const data = await res.json();
+  
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || "Trade Failed");
+    // Pass the error message back to the UI
+    throw new Error(data.detail || "Trade failed");
   }
-  return await res.json();
+  return data;
 }
 
+// 5. Fetch Trade History
 export async function fetchTradeHistory() {
   try {
     const res = await fetch(`${API_BASE_URL}/trades`, { cache: 'no-store' });
@@ -76,6 +79,18 @@ export async function fetchTradeHistory() {
     return data.trades;
   } catch (error) {
     console.error("History Error:", error);
+    return [];
+  }
+}
+
+// 6. Fetch Portfolio Holdings
+export async function fetchPortfolio() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/portfolio`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (error) {
+    console.error("Fetch portfolio failed", error);
     return [];
   }
 }

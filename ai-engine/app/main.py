@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from app.services.backtester import BacktestEngine
 from app.services.report_engine import ReportEngine
+from app.services.data_loader import MarketDataLoader
 import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -60,6 +61,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class PortfolioItem(BaseModel):
+    symbol: str
+    quantity: int
+    average_price: float
+    current_price: float
+    current_value: float
+    pnl: float
+
 # ... (Keep PredictionResponse, TradeRequest models SAME as before) ...
 class PredictionResponse(BaseModel):
     symbol: str
@@ -96,6 +105,60 @@ def calculate_confidence(signal: str, sentiment: float, rsi: float, macd_hist: f
     elif signal == "SELL" and macd_hist < 0: score += 10
     
     return min(99.0, max(10.0, score))
+
+@app.get("/portfolio", response_model=List[PortfolioItem])
+async def get_portfolio():
+    """Calculates current holdings based on trade history."""
+    trades = await db.db.trades.find({"user_id": "demo_user"}).to_list(length=1000)
+
+    holdings = {}
+
+    for t in trades:
+        sym = t['symbol']
+        qty = t['quantity']
+        price = t['price']
+        action = t['action']
+
+        if sym not in holdings:
+            holdings[sym] = {"qty": 0, "total_cost": 0.0}
+
+        if action == "BUY":
+            holdings[sym]["qty"] += qty
+            holdings[sym]["total_cost"] += (qty * price)
+        elif action == "SELL":
+            # FIFO logic is complex, using simple average cost for now
+            if holdings[sym]["qty"] > 0:
+                avg_cost = holdings[sym]["total_cost"] / holdings[sym]["qty"]
+                holdings[sym]["total_cost"] -= (qty * avg_cost)
+                holdings[sym]["qty"] -= qty
+
+    # Convert to list and filter zero qty
+    portfolio = []
+    loader = MarketDataLoader()
+
+    for sym, data in holdings.items():
+        if data["qty"] > 0:
+            # Fetch live price for PnL
+            try:
+                df = loader.get_stock_data(sym, period="1d")
+                current_price = df['Close'].iloc[-1]
+            except:
+                current_price = data["total_cost"] / data["qty"] # Fallback
+
+            avg_price = data["total_cost"] / data["qty"]
+            current_val = data["qty"] * current_price
+            pnl = current_val - data["total_cost"]
+
+            portfolio.append({
+                "symbol": sym,
+                "quantity": int(data["qty"]),
+                "average_price": round(avg_price, 2),
+                "current_value": round(current_val, 2),
+                "current_price": round(current_price, 2),
+                "pnl": round(pnl, 2)
+            })
+
+    return portfolio
 
 @app.get("/")
 def health_check():
@@ -146,12 +209,32 @@ async def predict_stock(symbol: str):
         news = news_agent.get_news(search_term) 
         sentiment_score = news_agent.analyze_sentiment(news)
         
-        final_signal = "HOLD"
-        if move_pct > 0.5: final_signal = "BUY"
-        elif move_pct < -0.5: final_signal = "SELL"
-        
+        market_signal = "HOLD"
+        if move_pct > 0.5: market_signal = "BUY"
+        elif move_pct < -0.5: market_signal = "SELL"
+
+        # 2. Check User Holdings (Context Awareness)
+        # Fetch all trades for this symbol
+        trades = await db.db.trades.find({"user_id": "demo_user", "symbol": symbol}).to_list(length=1000)
+        holding_qty = 0
+        for t in trades:
+            if t['action'] == "BUY": holding_qty += t['quantity']
+            elif t['action'] == "SELL": holding_qty -= t['quantity']
+
+        # 3. Refine Signal based on Ownership
+        final_signal = market_signal
+        reason_suffix = ""
+
+        if market_signal == "SELL" and holding_qty <= 0:
+            final_signal = "AVOID"  # Changing SELL to AVOID
+            reason_suffix = " (Bearish, but you don't own it)"
+        elif market_signal == "HOLD" and holding_qty <= 0:
+            final_signal = "WATCH"  # Changing HOLD to WATCH
+            reason_suffix = " (Wait for better entry)"
+
+        # Risk Check
         if final_signal == "BUY" and sentiment_score < -0.2:
-            final_signal = "HOLD (Risk Alert ⚠️)"
+            final_signal = "WATCH (High Risk ⚠️)"
 
         # Confidence
         current_rsi = df['RSI'].iloc[-1]
@@ -204,8 +287,6 @@ async def predict_stock(symbol: str):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ... (Keep your existing Wallet, Trades, Backtest endpoints here. DO NOT DELETE THEM) ...
-# Just paste the Wallet/Trade/Backtest endpoints from your previous main.py below this line.
 
 @app.get("/wallet")
 async def get_wallet():
@@ -228,54 +309,87 @@ async def get_wallet():
 
 @app.get("/trades")
 async def get_trade_history():
-    user_id = "demo_user"
-    cursor = db.db.trades.find({"user_id": user_id}).sort("timestamp", -1).limit(50)
-    trades = []
-    async for doc in cursor:
-        trades.append({
+    trades = await db.db.trades.find({"user_id": "demo_user"}).sort("timestamp", -1).to_list(length=100)
+    
+    formatted_trades = []
+    for doc in trades:
+        # FIX: Handle both String and Datetime objects safely
+        ts = doc["timestamp"]
+        if hasattr(ts, "strftime"):
+            ts = ts.strftime("%Y-%m-%d %H:%M")
+        
+        formatted_trades.append({
             "symbol": doc["symbol"],
             "action": doc["action"],
             "price": doc["price"],
-            "quantity": doc.get("quantity", 1),
-            "timestamp": doc["timestamp"].strftime("%Y-%m-%d %H:%M"),
-            "total": doc["price"] * doc.get("quantity", 1)
+            "quantity": doc["quantity"],
+            "total": doc["total"],
+            "timestamp": str(ts) # Ensure it's always a string
         })
-    return {"trades": trades}
+        
+    return {"trades": formatted_trades}
 
 @app.post("/trade")
-async def execute_trade(trade: TradeRequest):
+async def trade_stock(trade: TradeRequest):
     user_id = "demo_user"
-    user = await db.db.users.find_one({"user_id": user_id})
-    if not user: await get_wallet()
     
-    qty = int(trade.quantity)
-    if qty <= 0: raise HTTPException(status_code=400, detail="Quantity must be positive")
+    # 1. Get Current Wallet Balance
+    user = await db.db.users.find_one({"user_id": user_id})
+    if not user:
+        # Create user if not exists (for first run)
+        user = {"user_id": user_id, "balance": 100000}
+        await db.db.users.insert_one(user)
+    
+    current_balance = user.get("balance", 100000)
+    total_cost = trade.price * trade.quantity
 
-    total_cost = trade.price * qty
-    current_portfolio = user.get("portfolio", {})
-    raw_holding = current_portfolio.get(trade.symbol, 0)
-    current_qty = int(raw_holding) if not isinstance(raw_holding, dict) else int(raw_holding.get('quantity', 0))
-
+    # 2. BUY Logic
     if trade.action == "BUY":
-        if user["balance"] < total_cost:
-            raise HTTPException(status_code=400, detail=f"Insufficient Funds. Need ₹{total_cost:,.2f}")
-        new_balance = user["balance"] - total_cost
-        new_qty = current_qty + qty
-        await db.db.users.update_one({"user_id": user_id}, {"$set": {"balance": new_balance, f"portfolio.{trade.symbol}": new_qty}})
+        if current_balance < total_cost:
+            raise HTTPException(status_code=400, detail="Insufficient funds")
+        
+        new_balance = current_balance - total_cost
+        await db.db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"balance": new_balance}}
+        )
 
+    # 3. SELL Logic (The Fix)
     elif trade.action == "SELL":
-        if current_qty < qty:
-            raise HTTPException(status_code=400, detail=f"Insufficient Holdings. You own {current_qty}.")
-        new_balance = user["balance"] + total_cost
-        new_qty = current_qty - qty
-        await db.db.users.update_one({"user_id": user_id}, {"$set": {"balance": new_balance, f"portfolio.{trade.symbol}": new_qty}})
+        # Calculate Net Holdings (Buys - Sells)
+        trades = await db.db.trades.find({"user_id": user_id, "symbol": trade.symbol}).to_list(length=1000)
+        
+        current_qty = 0
+        for t in trades:
+            if t['action'] == "BUY":
+                current_qty += t['quantity']
+            elif t['action'] == "SELL":
+                current_qty -= t['quantity']
+        
+        # Validation Check
+        if current_qty < trade.quantity:
+            print(f"❌ Sell Rejected. Owned: {current_qty}, Requested: {trade.quantity}")
+            raise HTTPException(status_code=400, detail=f"Insufficient quantity. You own {current_qty}.")
 
-    await db.db.trades.insert_one({
-        "user_id": user_id, "symbol": trade.symbol, "action": trade.action,
-        "price": trade.price, "quantity": qty, "total": total_cost,
-        "timestamp": datetime.utcnow()
-    })
-    return {"status": "success", "message": f"{trade.action} {qty} {trade.symbol}", "new_balance": new_balance}
+        new_balance = current_balance + total_cost
+        await db.db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"balance": new_balance}}
+        )
+
+    # 4. Log the Trade
+    trade_doc = {
+        "user_id": user_id,
+        "symbol": trade.symbol,
+        "action": trade.action,
+        "price": trade.price,
+        "quantity": trade.quantity,
+        "total": total_cost,
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    await db.db.trades.insert_one(trade_doc)
+    
+    return {"status": "success", "new_balance": new_balance}
 
 @app.post("/reset")
 async def reset_account():
