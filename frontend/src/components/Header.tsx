@@ -14,7 +14,7 @@ export default function Header() {
           <span className="font-bold text-xl tracking-tight text-white">AlgoTrade.India</span>
         </div>
 
-        {/* 2. Global Search Bar (This is what was missing) */}
+        {/* 2. Global Search Bar */}
         <div className="w-full md:flex-1 md:max-w-xl mx-4">
             <GlobalSearch />
         </div>
